@@ -96,9 +96,10 @@ señala esa asunción donde afecte al importe.
 ### Cambio de año de residencia
 
 Las tarifas dependen del año de residencia, que cambia a finales de mayo. La
-configuración guarda `añoResidencia` y `fechaCambioAño` (por defecto el 27 de
-mayo). `tarifaEn(fecha)` resuelve qué tabla aplica, de modo que una estimación
-que cruce mayo de 2027 use 14,07 antes y 15,42 después.
+configuración guarda una sola fecha, `inicioResidencia` (el 27 de mayo de 2026,
+cuando empezó R1), y el año se deriva de ella: un dato en vez de dos que pueden
+contradecirse. `tarifaEn(fecha)` resuelve qué tabla aplica, de modo que una
+estimación que cruce mayo de 2027 use 14,07 antes y 15,42 después.
 
 ## 5. Cálculo del neto
 
@@ -116,6 +117,12 @@ ingresos de un R1. Los descuentos son solo Seguridad Social, calculada sobre
 bases de cotización que no coinciden con el importe devengado (desempleo 1,60 %
 sobre 1.610,10; formación 0,10 % sobre 1.610,10; régimen general 4,85 % sobre
 1.989,30).
+
+Los tipos se guardan como fracción con seis decimales, no como porcentaje con
+dos. Con `8,98 %` el neto de julio sale 1.255,99 € y el real es 1.256,05 €; con
+`0,089753` sale exacto. El orden de cálculo también importa: primero
+`descuento = redondear(bruto × tipo)` y después `neto = bruto − descuento`. Al
+revés se desvían céntimos.
 
 ### Por qué no se replica la fórmula
 
@@ -155,12 +162,11 @@ Un objeto en `localStorage`, clave `cuadrante_v5`:
 {
   version: 5,
   config: {
-    añoResidencia: 1,
-    fechaCambioAño: "05-27",
-    sueldoBase: 1379.90,
+    inicioResidencia: "2026-05-27",
+    cortarAMedianoche: true,
     festivoEspecialCortaAMedianoche: true,
-    retencionBase: 8.98,
-    retencionGuardias: 3.26
+    retencionBase: 0.089753,
+    retencionGuardias: 0.032609
   },
   guardias: {
     "2026-08-02": { horas: 15, inicio: "17:00", lugar: "PTA", hecha: true }
