@@ -18,7 +18,8 @@ function desmodularizar(codigo) {
 
 export function construir() {
   const js = ORDEN.map((n) => desmodularizar(leer(n))).join("\n\n");
-  return `<title>cuadrante</title>
+  return `<meta charset="utf-8">
+<title>cuadrante</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 ${leer("estilos.css").trim()}

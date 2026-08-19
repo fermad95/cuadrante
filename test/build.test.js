@@ -5,6 +5,7 @@ import { construir } from "../build.mjs";
 
 test("el html generado es autocontenido", () => {
   const html = construir();
+  assert.ok(html.includes('<meta charset="utf-8">'));
   assert.ok(html.includes("<title>cuadrante</title>"));
   assert.ok(html.includes("14.07"), "debe llevar las tarifas dentro");
   assert.ok(!html.includes("import "), "no puede quedar ningun import");
