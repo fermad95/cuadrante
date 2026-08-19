@@ -43,3 +43,7 @@ export function diasDelMes(anioMes) {
   const cuantos = new Date(a, m, 0).getDate();
   return Array.from({ length: cuantos }, (_, i) => texto(a, m, i + 1));
 }
+
+export function redondear(n) {
+  return Math.round(n * 100) / 100;
+}
