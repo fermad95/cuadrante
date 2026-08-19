@@ -93,3 +93,19 @@ export function resumenAnio(anio, estado) {
   }
   return { meses, horasPorTipo, bruto, neto };
 }
+
+export function compararHipotesis(anioMes, estado) {
+  const con = resumenMes(anioMes, {
+    ...estado, config: { ...estado.config, cortarAMedianoche: true },
+  });
+  const sin = resumenMes(anioMes, {
+    ...estado, config: { ...estado.config, cortarAMedianoche: false },
+  });
+  const diferencia = redondear(Math.abs(con.brutoGuardias - sin.brutoGuardias));
+  return {
+    conCorte: { horasPorTipo: con.horasPorTipo, brutoGuardias: con.brutoGuardias },
+    sinCorte: { horasPorTipo: sin.horasPorTipo, brutoGuardias: sin.brutoGuardias },
+    difieren: diferencia !== 0,
+    diferencia,
+  };
+}
