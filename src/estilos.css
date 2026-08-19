@@ -1,0 +1,65 @@
+/* src/estilos.css */
+:root {
+  --fondo: #05080a;
+  --tarjeta: #0d1418;
+  --borde: #1c2b33;
+  --texto: #c8d6db;
+  --tenue: #5b7280;
+  --laborable: #22d3ee;
+  --sdf: #eab308;
+  --especial: #ec4899;
+  --acento: #22c55e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 1rem;
+  background: var(--fondo); color: var(--texto);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px; line-height: 1.5;
+}
+.tarjeta {
+  background: var(--tarjeta); border: 1px solid var(--borde);
+  border-radius: 12px; padding: 1rem; margin-bottom: 1rem;
+}
+.rejilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dia {
+  aspect-ratio: 1; border: 1px solid var(--borde); border-radius: 8px;
+  background: #0a1114; padding: 6px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.dia:hover { border-color: var(--tenue); }
+.dia.hoy { border-color: var(--acento); color: var(--acento); }
+.dia .horas { font-size: 11px; }
+.dia.laborable { border-color: var(--laborable); }
+.dia.sdf { border-color: var(--sdf); }
+.dia.especial { border-color: var(--especial); }
+.dia .lugar { font-size: 10px; color: var(--sdf); }
+.dia .cruza { font-size: 9px; color: var(--tenue); }
+.cabecera-semana { color: var(--tenue); font-size: 12px; text-align: center; }
+.aviso {
+  border-left: 3px solid var(--sdf); padding-left: .75rem;
+  color: var(--tenue); font-size: 13px; margin: .75rem 0;
+}
+#modal {
+  position: fixed; inset: 0; background: #000c;
+  align-items: center; justify-content: center; padding: 1rem; z-index: 10;
+}
+#modal.abierto { display: flex; }
+#modal .caja {
+  background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px;
+  padding: 1.25rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+}
+button, input, select {
+  background: #0a1114; color: var(--texto); border: 1px solid var(--borde);
+  border-radius: 8px; padding: .5rem .75rem; font: inherit;
+}
+button { cursor: pointer; }
+button.activo { border-color: var(--laborable); color: var(--laborable); }
+button.primario { background: var(--laborable); color: #05080a; border-color: var(--laborable); }
+table { width: 100%; border-collapse: collapse; }
+td { padding: .25rem 0; }
+td.cifra { text-align: right; }
+.total { color: var(--acento); font-weight: bold; }
+.pestanas { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.pestanas button { border: none; background: none; color: var(--tenue); padding: .25rem 0; }
+.pestanas button.activo { color: var(--laborable); border-bottom: 2px solid var(--laborable); }
