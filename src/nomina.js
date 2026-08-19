@@ -45,16 +45,7 @@ export function resumenMes(anioMes, estado) {
   for (const [fecha, guardia] of Object.entries(estado.guardias)) {
     if (mesDe(fecha) !== anioMes) continue;
     nGuardias += 1;
-    let r = calcularGuardia({ ...guardia, fecha }, estado.festivos, estado.config);
-    const cruzaDeMes = r.tramos.some((t) => mesDe(t.fecha) !== anioMes);
-    if (cruzaDeMes) {
-      // Una guardia que cruza de mes cuenta entera, sin cortar, en el mes
-      // en que empieza: no tiene sentido repartir sus horas entre dos meses.
-      r = calcularGuardia(
-        { ...guardia, fecha },
-        estado.festivos,
-        { ...estado.config, cortarAMedianoche: false });
-    }
+    const r = calcularGuardia({ ...guardia, fecha }, estado.festivos, estado.config);
     for (const tipo of ["laborable", "sdf", "especial"]) {
       horasPorTipo[tipo] += r.horasPorTipo[tipo];
       importePorTipo[tipo] = redondear(importePorTipo[tipo] + r.importePorTipo[tipo]);

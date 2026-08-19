@@ -68,9 +68,17 @@ test("una guardia que cruza de mes cuenta en el mes en que empieza", () => {
     ...ESTADO,
     guardias: { "2026-07-31": { horas: 17, inicio: "15:00" } },
   };
+  // El 31 de julio de 2026 es viernes: 9h de viernes y 8h del sabado 1 de agosto.
+  // Las 17 horas se atribuyen a julio, el mes en que empieza, pero cada tramo
+  // conserva la tarifa de su propio dia natural.
   assert.equal(resumenMes("2026-07", estado).nGuardias, 1);
   assert.equal(resumenMes("2026-08", estado).nGuardias, 0);
-  assert.equal(resumenMes("2026-07", estado).horasPorTipo.laborable, 17);
+  const r = resumenMes("2026-07", estado);
+  assert.equal(r.horasPorTipo.laborable, 9);
+  assert.equal(r.horasPorTipo.sdf, 8);
+  assert.equal(r.importePorTipo.laborable, 126.63);
+  assert.equal(r.importePorTipo.sdf, 126.24);
+  assert.equal(r.brutoGuardias, 252.87);
 });
 
 test("la prevision de ingreso cobra las guardias del mes anterior", () => {
