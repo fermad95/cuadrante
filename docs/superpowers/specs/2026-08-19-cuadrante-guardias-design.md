@@ -1,7 +1,7 @@
 # Cuadrante de guardias MIR — diseño
 
 Fecha: 2026-08-19
-Estado: pendiente de revisión
+Estado: aprobado
 
 ## 1. Objetivo
 
@@ -220,9 +220,9 @@ Verificado el día de la semana de cada fecha:
 Se añaden 24-12 y 31-12 como candidatos a festivo especial, sin marcar: no son
 festivos oficiales pero suelen retribuirse como especiales.
 
-Todas llegan clasificadas como `sdf`. El usuario marca las especiales. La lista
-local de Córdoba está tomada del calendario habitual de la ciudad y debe
-confirmarla contra el calendario laboral publicado.
+Todas llegan clasificadas como `sdf`. El usuario marca las especiales. Los dos
+festivos locales de Córdoba —la Fuensanta el 8 de septiembre y San Rafael el 24
+de octubre— están confirmados por el usuario.
 
 ## 9. Interfaz
 
@@ -328,6 +328,6 @@ la correcta, se fija y se marca la regla como verificada.
 | Riesgo | Mitigación |
 |---|---|
 | El corte a medianoche en festivos especiales puede no ser el del SAS | Interruptor de configuración; asunción visible en la interfaz |
-| El calendario local de Córdoba no está verificado | Editable; el usuario lo confirma |
+| Los festivos nacionales y autonómicos de 2026 no están contrastados con el BOJA | Editables uno a uno desde la pestaña de festivos |
 | La calibración del neto se apoya en dos nóminas | Se muestra el número de nóminas; mejora al registrar más |
 | El día de corte de la liquidación (día 5) es desconocido | Se asume mes natural y se avisa |
