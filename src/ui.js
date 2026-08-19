@@ -139,7 +139,7 @@ export function iniciar(raiz, almacen) {
   }
 
   function abrirModal(fecha) {
-    const g = estado.guardias[fecha] || { horas: 17, inicio: inicioSugerido(17), lugar: "", hecha: false };
+    const g = { ...(estado.guardias[fecha] || { horas: 17, inicio: inicioSugerido(17), lugar: "", hecha: false }) };
     const caja = raiz.querySelector("#caja-modal");
 
     function pintarModal() {
@@ -175,13 +175,13 @@ export function iniciar(raiz, almacen) {
       else if (b.id === "m-borrar") { delete estado.guardias[fecha]; persistir(); cerrarModal(); pintar(); }
       else if (b.id === "m-guardar") {
         const valorInicio = caja.querySelector("#m-inicio").value;
-        if (/^\d{2}:\d{2}$/.test(valorInicio)) g.inicio = valorInicio;
+        if (/^([01]\d|2[0-3]):[0-5]\d$/.test(valorInicio)) g.inicio = valorInicio;
         g.hecha = caja.querySelector("#m-hecha").checked;
         estado.guardias[fecha] = g; persistir(); cerrarModal(); pintar();
       }
     };
     caja.oninput = (ev) => {
-      if (ev.target.id === "m-inicio" && /^\d{2}:\d{2}$/.test(ev.target.value)) {
+      if (ev.target.id === "m-inicio" && /^([01]\d|2[0-3]):[0-5]\d$/.test(ev.target.value)) {
         g.inicio = ev.target.value;
         const foco = ev.target.selectionStart;
         pintarModal();
