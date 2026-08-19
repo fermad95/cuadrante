@@ -1,5 +1,7 @@
 // src/nomina.js
-import { redondear } from "./fechas.js";
+import { redondear, mesDe } from "./fechas.js";
+import { calcularGuardia } from "./motor.js";
+import { retribucionFija, anioResidenciaEn } from "./tarifas.js";
 
 function tipoMedio(nominas, clase) {
   const suyas = nominas.filter((n) => n.clase === clase && n.bruto > 0);
@@ -22,4 +24,81 @@ export function tiposEfectivos(nominas, config) {
 export function aplicarRetencion(bruto, tipo) {
   const descuento = redondear(bruto * tipo);
   return { descuento, neto: redondear(bruto - descuento) };
+}
+
+export function mesAnterior(anioMes) {
+  const [a, m] = anioMes.split("-").map(Number);
+  return m === 1
+    ? `${a - 1}-12`
+    : `${a}-${String(m - 1).padStart(2, "0")}`;
+}
+
+export function resumenMes(anioMes, estado) {
+  const tipos = tiposEfectivos(estado.nominas, estado.config);
+  const anio = anioResidenciaEn(`${anioMes}-15`, estado.config.inicioResidencia);
+  const brutoBase = retribucionFija(anio).mensual;
+
+  const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  let nGuardias = 0;
+
+  for (const [fecha, guardia] of Object.entries(estado.guardias)) {
+    if (mesDe(fecha) !== anioMes) continue;
+    nGuardias += 1;
+    let r = calcularGuardia({ ...guardia, fecha }, estado.festivos, estado.config);
+    const cruzaDeMes = r.tramos.some((t) => mesDe(t.fecha) !== anioMes);
+    if (cruzaDeMes) {
+      // Una guardia que cruza de mes cuenta entera, sin cortar, en el mes
+      // en que empieza: no tiene sentido repartir sus horas entre dos meses.
+      r = calcularGuardia(
+        { ...guardia, fecha },
+        estado.festivos,
+        { ...estado.config, cortarAMedianoche: false });
+    }
+    for (const tipo of ["laborable", "sdf", "especial"]) {
+      horasPorTipo[tipo] += r.horasPorTipo[tipo];
+      importePorTipo[tipo] = redondear(importePorTipo[tipo] + r.importePorTipo[tipo]);
+    }
+  }
+
+  const brutoGuardias = redondear(
+    importePorTipo.laborable + importePorTipo.sdf + importePorTipo.especial);
+  const base = aplicarRetencion(brutoBase, tipos.base);
+  const guardias = aplicarRetencion(brutoGuardias, tipos.guardias);
+
+  return {
+    anioMes, nGuardias, horasPorTipo, importePorTipo,
+    brutoBase, brutoGuardias, bruto: redondear(brutoBase + brutoGuardias),
+    netoBase: base.neto, netoGuardias: guardias.neto,
+    neto: redondear(base.neto + guardias.neto),
+  };
+}
+
+export function previsionIngreso(anioMes, estado) {
+  const deEsteMes = resumenMes(anioMes, estado);
+  const guardiasDe = mesAnterior(anioMes);
+  const delAnterior = resumenMes(guardiasDe, estado);
+  return {
+    anioMes,
+    base: deEsteMes.netoBase,
+    guardiasDe,
+    importeGuardias: delAnterior.netoGuardias,
+    total: redondear(deEsteMes.netoBase + delAnterior.netoGuardias),
+  };
+}
+
+export function resumenAnio(anio, estado) {
+  const meses = Array.from({ length: 12 }, (_, i) =>
+    resumenMes(`${anio}-${String(i + 1).padStart(2, "0")}`, estado));
+  const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  let bruto = 0;
+  let neto = 0;
+  for (const m of meses) {
+    for (const tipo of ["laborable", "sdf", "especial"]) {
+      horasPorTipo[tipo] += m.horasPorTipo[tipo];
+    }
+    bruto = redondear(bruto + m.bruto);
+    neto = redondear(neto + m.neto);
+  }
+  return { meses, horasPorTipo, bruto, neto };
 }
