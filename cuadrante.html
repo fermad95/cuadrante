@@ -1,0 +1,676 @@
+<title>cuadrante</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* src/estilos.css */
+:root {
+  --fondo: #05080a;
+  --tarjeta: #0d1418;
+  --borde: #1c2b33;
+  --texto: #c8d6db;
+  --tenue: #5b7280;
+  --laborable: #22d3ee;
+  --sdf: #eab308;
+  --especial: #ec4899;
+  --acento: #22c55e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 1rem;
+  background: var(--fondo); color: var(--texto);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px; line-height: 1.5;
+}
+.tarjeta {
+  background: var(--tarjeta); border: 1px solid var(--borde);
+  border-radius: 12px; padding: 1rem; margin-bottom: 1rem;
+}
+.rejilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dia {
+  aspect-ratio: 1; border: 1px solid var(--borde); border-radius: 8px;
+  background: #0a1114; padding: 6px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.dia:hover { border-color: var(--tenue); }
+.dia.hoy { border-color: var(--acento); color: var(--acento); }
+.dia .horas { font-size: 11px; }
+.dia.laborable { border-color: var(--laborable); }
+.dia.sdf { border-color: var(--sdf); }
+.dia.especial { border-color: var(--especial); }
+.dia .lugar { font-size: 10px; color: var(--sdf); }
+.dia .cruza { font-size: 9px; color: var(--tenue); }
+.cabecera-semana { color: var(--tenue); font-size: 12px; text-align: center; }
+.aviso {
+  border-left: 3px solid var(--sdf); padding-left: .75rem;
+  color: var(--tenue); font-size: 13px; margin: .75rem 0;
+}
+#modal {
+  position: fixed; inset: 0; background: #000c; display: none;
+  align-items: center; justify-content: center; padding: 1rem; z-index: 10;
+}
+#modal.abierto { display: flex; }
+#modal .caja {
+  background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px;
+  padding: 1.25rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+}
+button, input, select {
+  background: #0a1114; color: var(--texto); border: 1px solid var(--borde);
+  border-radius: 8px; padding: .5rem .75rem; font: inherit;
+}
+button { cursor: pointer; }
+button.activo { border-color: var(--laborable); color: var(--laborable); }
+button.primario { background: var(--laborable); color: #05080a; border-color: var(--laborable); }
+table { width: 100%; border-collapse: collapse; }
+td { padding: .25rem 0; }
+td.cifra { text-align: right; }
+.total { color: var(--acento); font-weight: bold; }
+.pestanas { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.pestanas button { border: none; background: none; color: var(--tenue); padding: .25rem 0; }
+.pestanas button.activo { color: var(--laborable); border-bottom: 2px solid var(--laborable); }
+</style>
+<h1>cuadrante_</h1>
+<p class="tenue">MIR · SAS R. 0002/2026</p>
+<div class="pestanas" id="pestanas"></div>
+<div id="vista"></div>
+<div id="modal"><div class="caja" id="caja-modal"></div></div>
+<script type="module">
+function partes(fechaISO) {
+  const [a, m, d] = fechaISO.split("-").map(Number);
+  return { a, m, d };
+}
+
+function texto(a, m, d) {
+  return `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function diaSemana(fechaISO) {
+  const { a, m, d } = partes(fechaISO);
+  return new Date(a, m - 1, d).getDay();
+}
+
+function diaSiguiente(fechaISO) {
+  const { a, m, d } = partes(fechaISO);
+  const siguiente = new Date(a, m - 1, d + 1);
+  return texto(siguiente.getFullYear(), siguiente.getMonth() + 1, siguiente.getDate());
+}
+
+function aMinutos(hora) {
+  const [h, m] = hora.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function aHora(minutos) {
+  const dias = Math.floor(minutos / 1440);
+  const resto = minutos - dias * 1440;
+  if (resto === 0 && dias > 0) {
+    return dias === 1 ? "24:00" : `24:00 +${dias - 1}`;
+  }
+  const h = String(Math.floor(resto / 60)).padStart(2, "0");
+  const m = String(resto % 60).padStart(2, "0");
+  return dias > 0 ? `${h}:${m} +${dias}` : `${h}:${m}`;
+}
+
+function mesDe(fechaISO) {
+  return fechaISO.slice(0, 7);
+}
+
+function diasDelMes(anioMes) {
+  const [a, m] = anioMes.split("-").map(Number);
+  const cuantos = new Date(a, m, 0).getDate();
+  return Array.from({ length: cuantos }, (_, i) => texto(a, m, i + 1));
+}
+
+function redondear(n) {
+  return Math.round(n * 100) / 100;
+}
+
+// src/tarifas.js
+
+const TARIFAS = {
+  1: { laborable: 14.07, sdf: 15.78, especial: 28.14 },
+  2: { laborable: 15.42, sdf: 17.28, especial: 30.84 },
+  3: { laborable: 18.02, sdf: 20.17, especial: 36.04 },
+  4: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
+  5: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
+};
+
+const SUELDO_BASE = 1379.90;
+
+const CG_FORMACION = { 1: 0, 2: 110.38, 3: 248.41, 4: 386.37, 5: 524.38 };
+
+const PAGAS = 14;
+
+function anioResidenciaEn(fechaISO, inicioResidencia) {
+  const [ai, mi, di] = inicioResidencia.split("-").map(Number);
+  const [af, mf, df] = fechaISO.split("-").map(Number);
+  let anios = af - ai;
+  if (mf < mi || (mf === mi && df < di)) anios -= 1;
+  return Math.min(5, Math.max(1, anios + 1));
+}
+
+function tarifaEn(fechaISO, inicioResidencia) {
+  return TARIFAS[anioResidenciaEn(fechaISO, inicioResidencia)];
+}
+
+function retribucionFija(anioResidencia) {
+  const sueldo = SUELDO_BASE;
+  const cg = CG_FORMACION[anioResidencia];
+  const mensual = redondear(sueldo + cg);
+  return { sueldo, cg, mensual, anual: redondear(mensual * PAGAS) };
+}
+
+// src/festivos.js
+
+const FESTIVOS_2026 = [
+  { fecha: "2026-01-01", nombre: "Ano Nuevo", ambito: "nacional" },
+  { fecha: "2026-01-06", nombre: "Reyes", ambito: "nacional" },
+  { fecha: "2026-02-28", nombre: "Dia de Andalucia", ambito: "autonomico" },
+  { fecha: "2026-04-02", nombre: "Jueves Santo", ambito: "nacional" },
+  { fecha: "2026-04-03", nombre: "Viernes Santo", ambito: "nacional" },
+  { fecha: "2026-05-01", nombre: "Fiesta del Trabajo", ambito: "nacional" },
+  { fecha: "2026-08-15", nombre: "Asuncion", ambito: "nacional" },
+  { fecha: "2026-09-08", nombre: "Ntra. Sra. de la Fuensanta", ambito: "local" },
+  { fecha: "2026-10-12", nombre: "Fiesta Nacional", ambito: "nacional" },
+  { fecha: "2026-10-24", nombre: "San Rafael", ambito: "local" },
+  { fecha: "2026-11-01", nombre: "Todos los Santos", ambito: "nacional" },
+  { fecha: "2026-12-06", nombre: "Constitucion", ambito: "nacional" },
+  { fecha: "2026-12-08", nombre: "Inmaculada", ambito: "nacional" },
+  { fecha: "2026-12-25", nombre: "Navidad", ambito: "nacional" },
+];
+
+const CANDIDATOS_ESPECIALES = [
+  { fecha: "2026-12-24", nombre: "Nochebuena", ambito: "candidato" },
+  { fecha: "2026-12-31", nombre: "Nochevieja", ambito: "candidato" },
+];
+
+function festivosIniciales() {
+  const mapa = {};
+  for (const f of FESTIVOS_2026) {
+    mapa[f.fecha] = { nombre: f.nombre, ambito: f.ambito, clase: "sdf" };
+  }
+  for (const f of CANDIDATOS_ESPECIALES) {
+    mapa[f.fecha] = { nombre: f.nombre, ambito: f.ambito, clase: "laborable" };
+  }
+  return mapa;
+}
+
+function clasificarDia(fechaISO, festivos) {
+  const marcado = festivos[fechaISO];
+  if (marcado && marcado.clase === "especial") return "especial";
+  if (marcado && marcado.clase === "sdf") return "sdf";
+  const dia = diaSemana(fechaISO);
+  if (dia === 0 || dia === 6) return "sdf";
+  return "laborable";
+}
+
+// src/motor.js
+
+
+
+const INICIO_POR_DURACION = { 7: "15:00", 8: "08:00", 12: "08:00", 15: "17:00", 17: "15:00", 24: "08:00" };
+
+function inicioSugerido(horas) {
+  return INICIO_POR_DURACION[horas] || "15:00";
+}
+
+function partirGuardia(guardia, festivos, opciones = {}) {
+  const cortar = opciones.cortarAMedianoche !== false;
+  const cortarEspecial = opciones.especialCortaAMedianoche !== false;
+  const inicio = aMinutos(guardia.inicio || inicioSugerido(guardia.horas));
+  const total = Math.round(guardia.horas * 60);
+  const tipoInicial = clasificarDia(guardia.fecha, festivos);
+
+  const enteraComoInicio =
+    !cortar || (!cortarEspecial && tipoInicial === "especial");
+
+  if (enteraComoInicio) {
+    return [{
+      fecha: guardia.fecha,
+      desde: aHora(inicio),
+      hasta: aHora(inicio + total),
+      horas: guardia.horas,
+      tipo: tipoInicial,
+    }];
+  }
+
+  const tramos = [];
+  let fecha = guardia.fecha;
+  let desde = inicio;
+  let restante = total;
+  while (restante > 0) {
+    const enEsteDia = Math.min(restante, 1440 - desde);
+    tramos.push({
+      fecha,
+      desde: aHora(desde),
+      hasta: aHora(desde + enEsteDia),
+      horas: enEsteDia / 60,
+      tipo: clasificarDia(fecha, festivos),
+    });
+    restante -= enEsteDia;
+    desde = 0;
+    fecha = diaSiguiente(fecha);
+  }
+  return tramos;
+}
+
+function calcularGuardia(guardia, festivos, config) {
+  const tramos = partirGuardia(guardia, festivos, config);
+  const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
+
+  const detallados = tramos.map((t) => {
+    const tarifa = tarifaEn(t.fecha, config.inicioResidencia)[t.tipo];
+    const importe = redondear(t.horas * tarifa);
+    horasPorTipo[t.tipo] += t.horas;
+    importePorTipo[t.tipo] = redondear(importePorTipo[t.tipo] + importe);
+    return { ...t, tarifa, importe };
+  });
+
+  const bruto = redondear(
+    importePorTipo.laborable + importePorTipo.sdf + importePorTipo.especial);
+  return { tramos: detallados, horasPorTipo, importePorTipo, bruto };
+}
+
+// src/nomina.js
+
+
+
+function tipoMedio(nominas, clase) {
+  const suyas = nominas.filter((n) => n.clase === clase && n.bruto > 0);
+  if (suyas.length === 0) return null;
+  const suma = suyas.reduce((acc, n) => acc + (n.bruto - n.neto) / n.bruto, 0);
+  return Math.round((suma / suyas.length) * 1e6) / 1e6;
+}
+
+function tiposEfectivos(nominas, config) {
+  const base = tipoMedio(nominas, "base");
+  const guardias = tipoMedio(nominas, "guardias");
+  return {
+    base: base === null ? config.retencionBase : base,
+    guardias: guardias === null ? config.retencionGuardias : guardias,
+    nBase: nominas.filter((n) => n.clase === "base").length,
+    nGuardias: nominas.filter((n) => n.clase === "guardias").length,
+  };
+}
+
+function aplicarRetencion(bruto, tipo) {
+  const descuento = redondear(bruto * tipo);
+  return { descuento, neto: redondear(bruto - descuento) };
+}
+
+function mesAnterior(anioMes) {
+  const [a, m] = anioMes.split("-").map(Number);
+  return m === 1
+    ? `${a - 1}-12`
+    : `${a}-${String(m - 1).padStart(2, "0")}`;
+}
+
+function resumenMes(anioMes, estado) {
+  const tipos = tiposEfectivos(estado.nominas, estado.config);
+  const anio = anioResidenciaEn(`${anioMes}-15`, estado.config.inicioResidencia);
+  const brutoBase = retribucionFija(anio).mensual;
+
+  const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  let nGuardias = 0;
+
+  for (const [fecha, guardia] of Object.entries(estado.guardias)) {
+    if (mesDe(fecha) !== anioMes) continue;
+    nGuardias += 1;
+    const r = calcularGuardia({ ...guardia, fecha }, estado.festivos, estado.config);
+    for (const tipo of ["laborable", "sdf", "especial"]) {
+      horasPorTipo[tipo] += r.horasPorTipo[tipo];
+      importePorTipo[tipo] = redondear(importePorTipo[tipo] + r.importePorTipo[tipo]);
+    }
+  }
+
+  const brutoGuardias = redondear(
+    importePorTipo.laborable + importePorTipo.sdf + importePorTipo.especial);
+  const base = aplicarRetencion(brutoBase, tipos.base);
+  const guardias = aplicarRetencion(brutoGuardias, tipos.guardias);
+
+  return {
+    anioMes, nGuardias, horasPorTipo, importePorTipo,
+    brutoBase, brutoGuardias, bruto: redondear(brutoBase + brutoGuardias),
+    netoBase: base.neto, netoGuardias: guardias.neto,
+    neto: redondear(base.neto + guardias.neto),
+  };
+}
+
+function previsionIngreso(anioMes, estado) {
+  const deEsteMes = resumenMes(anioMes, estado);
+  const guardiasDe = mesAnterior(anioMes);
+  const delAnterior = resumenMes(guardiasDe, estado);
+  return {
+    anioMes,
+    base: deEsteMes.netoBase,
+    guardiasDe,
+    importeGuardias: delAnterior.netoGuardias,
+    total: redondear(deEsteMes.netoBase + delAnterior.netoGuardias),
+  };
+}
+
+function resumenAnio(anio, estado) {
+  const meses = Array.from({ length: 12 }, (_, i) =>
+    resumenMes(`${anio}-${String(i + 1).padStart(2, "0")}`, estado));
+  const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
+  let bruto = 0;
+  let neto = 0;
+  for (const m of meses) {
+    for (const tipo of ["laborable", "sdf", "especial"]) {
+      horasPorTipo[tipo] += m.horasPorTipo[tipo];
+    }
+    bruto = redondear(bruto + m.bruto);
+    neto = redondear(neto + m.neto);
+  }
+  return { meses, horasPorTipo, bruto, neto };
+}
+
+function compararHipotesis(anioMes, estado) {
+  const con = resumenMes(anioMes, {
+    ...estado, config: { ...estado.config, cortarAMedianoche: true },
+  });
+  const sin = resumenMes(anioMes, {
+    ...estado, config: { ...estado.config, cortarAMedianoche: false },
+  });
+  const diferencia = redondear(Math.abs(con.brutoGuardias - sin.brutoGuardias));
+  return {
+    conCorte: { horasPorTipo: con.horasPorTipo, brutoGuardias: con.brutoGuardias },
+    sinCorte: { horasPorTipo: sin.horasPorTipo, brutoGuardias: sin.brutoGuardias },
+    difieren: diferencia !== 0,
+    diferencia,
+  };
+}
+
+const CLAVE = "cuadrante_v5";
+
+function estadoInicial() {
+  return {
+    version: 5,
+    config: {
+      inicioResidencia: "2026-05-27",
+      cortarAMedianoche: true,
+      especialCortaAMedianoche: true,
+      retencionBase: 0.089753,
+      retencionGuardias: 0.032609,
+    },
+    guardias: {
+      "2026-06-08": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
+      "2026-06-15": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
+      "2026-06-20": { horas: 12, inicio: "08:00", lugar: "", hecha: true },
+      "2026-06-26": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
+      "2026-08-02": { horas: 15, inicio: "17:00", lugar: "PTA", hecha: true },
+      "2026-08-03": { horas: 8, inicio: "08:00", lugar: "", hecha: true },
+      "2026-08-05": { horas: 17, inicio: "15:00", lugar: "OBS", hecha: true },
+      "2026-08-11": { horas: 17, inicio: "15:00", lugar: "PTA", hecha: true },
+      "2026-08-13": { horas: 17, inicio: "15:00", lugar: "", hecha: true },
+    },
+    festivos: festivosIniciales(),
+    nominas: [
+      { periodo: "2026-07", clase: "base", bruto: 1379.90, neto: 1256.05 },
+      { periodo: "2026-06", clase: "guardias", bruto: 484.83, neto: 469.02 },
+    ],
+  };
+}
+
+function cargar(almacen) {
+  const inicial = estadoInicial();
+  let guardado;
+  try {
+    guardado = JSON.parse(almacen.getItem(CLAVE));
+  } catch {
+    return inicial;
+  }
+  if (!guardado || typeof guardado !== "object") return inicial;
+  return {
+    ...inicial,
+    ...guardado,
+    config: { ...inicial.config, ...(guardado.config || {}) },
+  };
+}
+
+function guardar(almacen, estado) {
+  almacen.setItem(CLAVE, JSON.stringify(estado));
+}
+
+// src/ui.js
+
+
+
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const DURACIONES = [7, 8, 12, 15, 17, 24];
+const LUGARES = ["PTA", "OBS", "INT", "RS", "HP"];
+const AVISO_SIN_VERIFICAR =
+  "Regla del corte a medianoche sin verificar. Se confirma con la nomina de septiembre.";
+
+const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
+
+function iniciar(raiz, almacen) {
+  const estado = cargar(almacen);
+  let pestana = "calendario";
+  let mesVisible = "2026-08";
+
+  const persistir = () => guardar(almacen, estado);
+
+  function pintar() {
+    raiz.querySelector("#pestanas").innerHTML = ["calendario", "festivos", "nominas", "anual"]
+      .map((p) => `<button data-pestana="${p}" class="${p === pestana ? "activo" : ""}">${p}</button>`)
+      .join("");
+    const vista = raiz.querySelector("#vista");
+    if (pestana === "calendario") vista.innerHTML = vistaCalendario();
+    if (pestana === "festivos") vista.innerHTML = vistaFestivos();
+    if (pestana === "nominas") vista.innerHTML = vistaNominas();
+    if (pestana === "anual") vista.innerHTML = vistaAnual();
+  }
+
+  function vistaCalendario() {
+    const [anio, mes] = mesVisible.split("-").map(Number);
+    const dias = diasDelMes(mesVisible);
+    const hueco = (diaSemana(dias[0]) + 6) % 7; // lunes primero
+    const celdas = ["<div></div>".repeat(hueco)];
+    for (const fecha of dias) {
+      const g = estado.guardias[fecha];
+      const num = Number(fecha.slice(8));
+      let clases = "dia";
+      let detalle = "";
+      if (g) {
+        const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
+        const tipos = [...new Set(r.tramos.map((t) => t.tipo))];
+        clases += ` ${tipos[0]}`;
+        detalle = `<span class="horas">${g.horas}h</span>`;
+        if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
+        if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
+      }
+      celdas.push(`<div class="${clases}" data-fecha="${fecha}">${num}${detalle}</div>`);
+    }
+    const r = resumenMes(mesVisible, estado);
+    const p = previsionIngreso(mesVisible, estado);
+    const c = compararHipotesis(mesVisible, estado);
+
+    return `
+      <div class="tarjeta">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <button data-mes="-1">‹</button>
+          <strong>${MESES[mes - 1]} ${anio}</strong>
+          <button data-mes="1">›</button>
+        </div>
+        <div class="rejilla" style="margin:.75rem 0">
+          ${["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cabecera-semana">${d}</div>`).join("")}
+        </div>
+        <div class="rejilla">${celdas.join("")}</div>
+      </div>
+      <div class="tarjeta">
+        <strong>// ${MESES[mes - 1]} ${anio}</strong>
+        <table>
+          <tr><td>sueldo_base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
+          ${filaTipo("laborable", r)}${filaTipo("sdf", r)}${filaTipo("especial", r)}
+          <tr><td>bruto_total</td><td class="cifra">${eur(r.bruto)}</td></tr>
+          <tr><td>neto_base</td><td class="cifra">${eur(r.netoBase)}</td></tr>
+          <tr><td>neto_guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
+          <tr><td class="total">total_neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
+        </table>
+        ${c.difieren ? `<p class="aviso">${AVISO_SIN_VERIFICAR}<br>
+          Con corte: ${eur(c.conCorte.brutoGuardias)} · sin corte: ${eur(c.sinCorte.brutoGuardias)}
+          · difieren en ${eur(c.diferencia)}.</p>` : ""}
+      </div>
+      <div class="tarjeta">
+        <strong>// se ingresa este mes</strong>
+        <table>
+          <tr><td>nomina base</td><td class="cifra">${eur(p.base)}</td></tr>
+          <tr><td>guardias de ${p.guardiasDe}</td><td class="cifra">${eur(p.importeGuardias)}</td></tr>
+          <tr><td class="total">total</td><td class="cifra total">${eur(p.total)}</td></tr>
+        </table>
+        <p class="aviso">Las guardias se cobran en la nomina del mes siguiente.</p>
+      </div>`;
+  }
+
+  function filaTipo(tipo, r) {
+    if (r.horasPorTipo[tipo] === 0) return "";
+    const nombre = { laborable: "Laborable", sdf: "Festiva (S-D-F)", especial: "Festivo especial" }[tipo];
+    return `<tr><td>${nombre} <span style="color:var(--tenue)">(${r.horasPorTipo[tipo]}h)</span></td>
+      <td class="cifra">${eur(r.importePorTipo[tipo])}</td></tr>`;
+  }
+
+  function vistaFestivos() {
+    const filas = Object.entries(estado.festivos).sort().map(([fecha, f]) => `
+      <tr><td>${fecha} ${f.nombre}</td><td class="cifra">
+        <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
+        <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
+      </td></tr>`).join("");
+    return `<div class="tarjeta"><strong>// festivos</strong><table>${filas}</table>
+      <p class="aviso">Marca como especial los que se retribuyan a ${eur(28.14)}/h.</p></div>`;
+  }
+
+  function vistaNominas() {
+    const t = tiposEfectivos(estado.nominas, estado.config);
+    const filas = estado.nominas.map((n, i) => `
+      <tr><td>${n.periodo} ${n.clase}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
+      <button data-borrar-nomina="${i}">×</button></td></tr>`).join("");
+    return `<div class="tarjeta"><strong>// nominas registradas</strong>
+      <table>${filas}</table>
+      <p>Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
+         Tipo efectivo guardias: ${(t.guardias * 100).toFixed(2)} % (${t.nGuardias} nominas)</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+        <input id="n-periodo" placeholder="2026-09" size="8">
+        <select id="n-clase"><option value="base">base</option><option value="guardias">guardias</option></select>
+        <input id="n-bruto" placeholder="bruto" size="8">
+        <input id="n-neto" placeholder="neto" size="8">
+        <button class="primario" id="n-anadir">anadir</button>
+      </div></div>`;
+  }
+
+  function vistaAnual() {
+    const r = resumenAnio(2026, estado);
+    return `<div class="tarjeta"><strong>// 2026</strong><table>
+      <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
+      <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
+      <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
+      <tr><td>bruto</td><td class="cifra">${eur(r.bruto)}</td></tr>
+      <tr><td class="total">neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
+    </table></div>`;
+  }
+
+  function abrirModal(fecha) {
+    const g = estado.guardias[fecha] || { horas: 17, inicio: inicioSugerido(17), lugar: "", hecha: false };
+    const caja = raiz.querySelector("#caja-modal");
+
+    function pintarModal() {
+      const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
+      const tipos = [...new Set(r.tramos.map((t) => t.tipo))];
+      const tramos = r.tramos.map((t) => `<tr><td>${t.fecha} ${t.desde}–${t.hasta}</td>
+        <td class="cifra">${t.horas}h × ${eur(t.tarifa)} = ${eur(t.importe)}</td></tr>`).join("");
+      caja.innerHTML = `
+        <strong>${fecha}</strong>
+        <p>Duracion</p>
+        <div>${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
+        <p>Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
+        <p>Lugar</p>
+        <div>${LUGARES.map((l) => `<button data-lugar="${l}" class="${g.lugar === l ? "activo" : ""}">${l}</button>`).join(" ")}
+             <button data-lugar="" class="${g.lugar === "" ? "activo" : ""}">sin especificar</button></div>
+        <p><label><input type="checkbox" id="m-hecha" ${g.hecha ? "checked" : ""}> Guardia ya realizada</label></p>
+        <table style="margin-top:.75rem">${tramos}
+          <tr><td class="total">bruto</td><td class="cifra total">${eur(r.bruto)}</td></tr></table>
+        ${tipos.length > 1 ? `<p class="aviso">${AVISO_SIN_VERIFICAR}</p>` : ""}
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button id="m-borrar">Borrar</button>
+          <button id="m-cancelar">Cancelar</button>
+          <button class="primario" id="m-guardar">Guardar</button>
+        </div>`;
+    }
+
+    caja.onclick = (ev) => {
+      const b = ev.target.closest("button");
+      if (!b) return;
+      if (b.dataset.horas) { g.horas = Number(b.dataset.horas); g.inicio = inicioSugerido(g.horas); pintarModal(); }
+      else if ("lugar" in b.dataset) { g.lugar = b.dataset.lugar; pintarModal(); }
+      else if (b.id === "m-cancelar") cerrarModal();
+      else if (b.id === "m-borrar") { delete estado.guardias[fecha]; persistir(); cerrarModal(); pintar(); }
+      else if (b.id === "m-guardar") {
+        const valorInicio = caja.querySelector("#m-inicio").value;
+        if (/^\d{2}:\d{2}$/.test(valorInicio)) g.inicio = valorInicio;
+        g.hecha = caja.querySelector("#m-hecha").checked;
+        estado.guardias[fecha] = g; persistir(); cerrarModal(); pintar();
+      }
+    };
+    caja.oninput = (ev) => {
+      if (ev.target.id === "m-inicio" && /^\d{2}:\d{2}$/.test(ev.target.value)) {
+        g.inicio = ev.target.value;
+        const foco = ev.target.selectionStart;
+        pintarModal();
+        const campo = caja.querySelector("#m-inicio");
+        campo.focus();
+        campo.setSelectionRange(foco, foco);
+      }
+    };
+    pintarModal();
+    raiz.querySelector("#modal").classList.add("abierto");
+  }
+
+  function cerrarModal() {
+    raiz.querySelector("#modal").classList.remove("abierto");
+  }
+
+  raiz.addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir");
+    if (!b) return;
+    if (b.dataset.pestana) { pestana = b.dataset.pestana; pintar(); }
+    else if (b.dataset.mes) {
+      const [a, m] = mesVisible.split("-").map(Number);
+      const d = new Date(a, m - 1 + Number(b.dataset.mes), 1);
+      mesVisible = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      pintar();
+    }
+    else if (b.dataset.fecha) abrirModal(b.dataset.fecha);
+    else if (b.dataset.festivo) {
+      const f = estado.festivos[b.dataset.festivo];
+      f.clase = f.clase === b.dataset.clase ? "laborable" : b.dataset.clase;
+      persistir(); pintar();
+    }
+    else if (b.dataset.borrarNomina) {
+      estado.nominas.splice(Number(b.dataset.borrarNomina), 1); persistir(); pintar();
+    }
+    else if (b.id === "n-anadir") {
+      const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
+      const bruto = Number(leer("#n-bruto"));
+      const neto = Number(leer("#n-neto"));
+      if (bruto > 0 && neto > 0) {
+        estado.nominas.push({
+          periodo: raiz.querySelector("#n-periodo").value,
+          clase: raiz.querySelector("#n-clase").value,
+          bruto: redondear(bruto), neto: redondear(neto),
+        });
+        persistir(); pintar();
+      }
+    }
+  });
+
+  raiz.querySelector("#modal").addEventListener("click", (ev) => {
+    if (ev.target.id === "modal") cerrarModal();
+  });
+
+  pintar();
+}
+
+iniciar(document.body, localStorage);
+</script>
