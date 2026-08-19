@@ -144,6 +144,7 @@ export function iniciar(raiz, almacen) {
 
     function pintarModal() {
       const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
+      const tipos = [...new Set(r.tramos.map((t) => t.tipo))];
       const tramos = r.tramos.map((t) => `<tr><td>${t.fecha} ${t.desde}–${t.hasta}</td>
         <td class="cifra">${t.horas}h × ${eur(t.tarifa)} = ${eur(t.importe)}</td></tr>`).join("");
       caja.innerHTML = `
@@ -157,7 +158,7 @@ export function iniciar(raiz, almacen) {
         <p><label><input type="checkbox" id="m-hecha" ${g.hecha ? "checked" : ""}> Guardia ya realizada</label></p>
         <table style="margin-top:.75rem">${tramos}
           <tr><td class="total">bruto</td><td class="cifra total">${eur(r.bruto)}</td></tr></table>
-        ${r.tramos.length > 1 ? `<p class="aviso">${AVISO_SIN_VERIFICAR}</p>` : ""}
+        ${tipos.length > 1 ? `<p class="aviso">${AVISO_SIN_VERIFICAR}</p>` : ""}
         <div style="display:flex;gap:.5rem;margin-top:1rem">
           <button id="m-borrar">Borrar</button>
           <button id="m-cancelar">Cancelar</button>
@@ -173,7 +174,8 @@ export function iniciar(raiz, almacen) {
       else if (b.id === "m-cancelar") cerrarModal();
       else if (b.id === "m-borrar") { delete estado.guardias[fecha]; persistir(); cerrarModal(); pintar(); }
       else if (b.id === "m-guardar") {
-        g.inicio = caja.querySelector("#m-inicio").value;
+        const valorInicio = caja.querySelector("#m-inicio").value;
+        if (/^\d{2}:\d{2}$/.test(valorInicio)) g.inicio = valorInicio;
         g.hecha = caja.querySelector("#m-hecha").checked;
         estado.guardias[fecha] = g; persistir(); cerrarModal(); pintar();
       }
