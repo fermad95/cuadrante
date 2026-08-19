@@ -46,9 +46,14 @@ contradigan.
 
 Acordadas con el usuario el 19/08/2026:
 
-1. **Hora de inicio deducida de la duración, editable.** 17h → 15:00, 24h →
-   08:00, 15h → 17:00, 12h → 20:00. Cualquier guardia con horario atípico se
-   corrige a mano en el modal.
+1. **Hora de inicio deducida de la duración, editable.** 7h → 15:00, 12h →
+   08:00, 15h → 17:00, 17h → 15:00, 24h → 08:00. Cualquier guardia con horario
+   atípico se corrige a mano en el modal.
+
+   Las de 7h son las guardias «de mochila»: refuerzo de tarde de 15:00 a 22:00,
+   sin noche. Son las que hizo el usuario en junio de 2026 y no cruzan
+   medianoche. Las de 12h en fin de semana van de 08:00 a 20:00, también sin
+   noche.
 2. **Festivos precargados, clasificación manual.** La app trae el calendario
    laboral 2026 (nacional + Andalucía + Córdoba) y el usuario marca cuáles son
    festivo especial y cuáles S-D-F normal.
@@ -177,6 +182,20 @@ Un objeto en `localStorage`, clave `cuadrante_v5`:
 esa categoría se calcula desde `nominas` y el valor de `config` deja de usarse.
 Así una sola fuente manda en cada momento.
 
+## 7 bis. Datos iniciales
+
+La app arranca con lo ya conocido, para que el usuario no reintroduzca nada:
+
+- **Guardias de junio de 2026**: 08 (7h), 15 (7h), 20 (12h), 26 (7h), todas
+  marcadas como realizadas.
+- **Guardias de agosto de 2026**: 02 (15h, PTA), 03 (8h), 05 (17h, OBS),
+  11 (17h, PTA), 13 (17h).
+- **Nóminas**: la de julio (base, 1.379,90 → 1.256,05) y la complementaria de
+  junio (guardias, 484,83 → 469,02).
+
+Los lugares de las guardias de junio y del día 3 de agosto no constan en las
+capturas y quedan vacíos.
+
 ## 8. Calendario 2026 precargado
 
 Verificado el día de la semana de cada fecha:
@@ -240,12 +259,61 @@ El motor debe reproducir estos casos:
 5. Con el interruptor de corte invertido, el caso 4 da 24h especiales = 675,36 €.
 6. Una guardia sin lugar y sin marcar como realizada computa igual en el bruto.
 
-Validación contra nómina real: la complementaria de junio liquida 21 horas
-laborables y 12 festivas. Introduciendo las guardias que el usuario hizo
-realmente en junio, la app debe llegar a esas mismas 21 y 12 horas. Es la
-comprobación de que la regla de medianoche coincide con la del SAS. **Requiere
-que el usuario indique qué guardias hizo entre el 8 y el 26 de junio**; hasta
-entonces queda pendiente.
+## 10 bis. Validación contra nómina real
+
+### Junio de 2026: qué queda validado
+
+Guardias realmente realizadas, confirmadas por el usuario:
+
+| Fecha | Día | Duración | Horario | Tipo |
+|---|---|---|---|---|
+| 08-06 | lunes | 7h | 15:00–22:00 | laborable |
+| 15-06 | lunes | 7h | 15:00–22:00 | laborable |
+| 20-06 | sábado | 12h | 08:00–20:00 | S-D-F |
+| 26-06 | viernes | 7h | 15:00–22:00 | laborable |
+
+La complementaria de junio liquidó 21 horas laborables (concepto I0310, periodo
+08-06 a 26-06) y 12 festivas (I0312, 20-06 a 20-06). El modelo reproduce ambas
+cifras exactamente: 3 × 7h = 21h laborables y 12h festivas el sábado 20.
+
+Importes: 21 × 14,07 = 295,47 y 12 × 15,78 = 189,36, que son los dos devengos de
+la nómina al céntimo. Aplicando el tipo efectivo del 3,26 %, el neto estimado es
+469,03 € contra los 469,02 € reales — un céntimo de redondeo. La app anterior,
+con su 8 % plano, daba 446,04 €: casi 23 € por debajo.
+
+Esto valida las tarifas del anexo XVI.2, la clasificación laborable / S-D-F y la
+calibración del neto.
+
+### Lo que junio NO valida
+
+Las cuatro guardias son «de mochila» y ninguna cruza medianoche. **La regla del
+corte a medianoche sigue sin ninguna nómina que la respalde.** Se sostiene solo
+en lo que le indicaron al usuario verbalmente.
+
+No debe presentarse como verificada en la interfaz hasta que lo esté.
+
+### La prueba pendiente: agosto de 2026
+
+Agosto de 2026 tiene cinco guardias: día 2 (domingo, 15h), día 3 (lunes, 8h) y
+los días 5, 11 y 13 (17h cada una). Las de 17h cruzan a la madrugada del día
+siguiente, pero caen entre laborables, así que no cambian de tarifa. **La única
+guardia que distingue las dos hipótesis es la del domingo 2**, de 15h desde las
+17:00, que cruza a lunes.
+
+Se liquidan en la nómina de septiembre, y ese documento decide:
+
+| Hipótesis | Laborables | S-D-F | Bruto |
+|---|---|---|---|
+| Corte a medianoche | 67h | 7h | 1.053,15 € |
+| Guardia entera a la tarifa del día de inicio | 59h | 15h | 1.066,83 € |
+
+Se diferencian en 13,68 €, y el desglose por horas de la nómina las separa sin
+ambigüedad. Nótese que la hipótesis del corte paga **menos** en este caso: no es
+la que conviene asumir por optimismo, es la que hay que comprobar.
+
+La app debe permitir contrastar ambas con un conmutador, para que al llegar la
+nómina de septiembre baste comparar sin rehacer nada. Cuando se confirme cuál es
+la correcta, se fija y se marca la regla como verificada.
 
 ## 11. Fuera de alcance
 
