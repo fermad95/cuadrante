@@ -32,8 +32,8 @@ const esc = (t) => String(t).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const GUION = {
-  episodio: "Episodio I",
-  titulo: "LA AMENAZA DE LA NÓMINA",
+  episodio: "Episodio IV",
+  titulo: "UNA NUEVA NÓMINA",
   parrafos: [
     "Es una época de incertidumbre. Un joven RESIDENTE ha comenzado su formación "
     + "en un hospital de la periferia, sin saber aún cuánto va a cobrar por las "
