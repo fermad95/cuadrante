@@ -22,6 +22,7 @@ export function construir() {
 <title>cuadrante</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+${leer("fuentes.css").trim()}
 ${leer("estilos.css").trim()}
 </style>
 ${leer("plantilla.html").trim()}
