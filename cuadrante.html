@@ -664,6 +664,8 @@ function guardar(almacen, estado) {
 
 
 
+
+
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const DURACIONES = [7, 8, 12, 15, 17, 24];
@@ -690,11 +692,13 @@ function hoyISO() {
 function iniciar(raiz, almacen) {
   const estado = cargar(almacen);
   let pestana = "calendario";
-  let mesVisible = "2026-08";
+  let mesVisible = hoyISO().slice(0, 7);
 
   const persistir = () => guardar(almacen, estado);
 
   function pintar() {
+    if (!estado.config.inicioResidencia) return pintarBienvenida();
+    raiz.querySelector("#pestanas").hidden = false;
     raiz.querySelector("#pestanas").innerHTML = ["calendario", "festivos", "nominas", "anual"]
       .map((p) => `<button data-pestana="${p}" class="${p === pestana ? "activo" : ""}">${p}</button>`)
       .join("");
@@ -703,6 +707,22 @@ function iniciar(raiz, almacen) {
     if (pestana === "festivos") vista.innerHTML = vistaFestivos();
     if (pestana === "nominas") vista.innerHTML = vistaNominas();
     if (pestana === "anual") vista.innerHTML = vistaAnual();
+  }
+
+  function pintarBienvenida() {
+    raiz.querySelector("#pestanas").hidden = true;
+    raiz.querySelector("#vista").innerHTML = `
+      <div class="tarjeta">
+        <strong class="etiqueta">// bienvenida</strong>
+        <p>Para calcular tus guardias necesito saber cuando empezaste la residencia.
+           De esa fecha salen tu anio (R1 a R5) y las tarifas que te corresponden.</p>
+        <p class="etiqueta-campo">Fecha de inicio</p>
+        <input type="date" id="b-inicio" value="">
+        <div class="acciones-modal">
+          <button class="primario" id="b-empezar">Empezar</button>
+        </div>
+        <p class="aviso">Puedes cambiarla despues en Ajustes.</p>
+      </div>`;
   }
 
   function vistaCalendario() {
@@ -875,10 +895,162 @@ function iniciar(raiz, almacen) {
     raiz.querySelector("#modal").classList.remove("abierto");
   }
 
+  function abrirAjustes() {
+    const caja = raiz.querySelector("#caja-modal");
+    const c = estado.config;
+    const r = retribucionesDe(c);
+    const anioEnCurso = Number(hoyISO().slice(0, 4));
+    const filas = [1, 2, 3, 4, 5].map((n) => `
+      <tr><td>R${n}</td><td class="cifra">
+        <input data-tarifa="${n}.laborable" value="${r.guardias[n].laborable}" size="4">
+        <input data-tarifa="${n}.sdf" value="${r.guardias[n].sdf}" size="4">
+        <input data-tarifa="${n}.especial" value="${r.guardias[n].especial}" size="4">
+      </td></tr>`).join("");
+
+    caja.innerHTML = `
+      <strong class="modal-fecha">Ajustes</strong>
+
+      <p class="etiqueta-campo">Inicio de residencia</p>
+      <input type="date" id="a-inicio" value="${c.inicioResidencia || ""}">
+
+      <p class="etiqueta-campo">Reparto de la guardia a medianoche</p>
+      <label><input type="checkbox" id="a-corte" ${c.cortarAMedianoche ? "checked" : ""}>
+        Partir las guardias a medianoche</label><br>
+      <label><input type="checkbox" id="a-corte-esp" ${c.especialCortaAMedianoche ? "checked" : ""}>
+        Partir tambien las de festivo especial</label>
+      <p class="aviso">${AVISO_SIN_VERIFICAR}</p>
+
+      <p class="etiqueta-campo">Retenciones por defecto</p>
+      <label>Base <input id="a-ret-base" value="${(c.retencionBase * 100).toFixed(4)}" size="6"> %</label>
+      <label>Guardias <input id="a-ret-guardias" value="${(c.retencionGuardias * 100).toFixed(4)}" size="6"> %</label>
+      <p class="aviso">Solo se usan mientras no registres ninguna nomina de esa clase.
+        En cuanto registras una, manda la mas reciente.</p>
+
+      <p class="etiqueta-campo">Valor hora (laborable / S-D-F / especial)</p>
+      <table>${filas}</table>
+      <p class="etiqueta-campo">Sueldo base</p>
+      <input id="a-sueldo" value="${r.sueldoBase}" size="8">
+      <p class="aviso">Valores del anexo XVI, 2026.${
+        anioEnCurso > 2026
+          ? ` Estamos en ${anioEnCurso}: contrastalos con tu nomina, el SAS los actualiza por convenio.`
+          : ""}</p>
+
+      <p class="etiqueta-campo">Copia de seguridad</p>
+      <textarea id="a-datos" rows="4" spellcheck="false">${esc(JSON.stringify(estado))}</textarea>
+      <div class="chips">
+        <button id="a-copiar">Copiar</button>
+        <button id="a-importar">Importar lo pegado</button>
+        <button class="peligro" id="a-borrar-todo">Borrar todo</button>
+      </div>
+      <p class="aviso" id="a-error">Tus datos viven solo en este navegador. Copia este
+        texto para guardarlos o pasarlos a otro dispositivo.</p>
+
+      <div class="acciones-modal">
+        <button id="a-cancelar">Cancelar</button>
+        <button class="primario" id="a-guardar">Guardar</button>
+      </div>`;
+
+    caja.onclick = (ev) => {
+      const b = ev.target.closest("button");
+      if (!b) return;
+      if (b.id === "a-cancelar") cerrarModal();
+      else if (b.id === "a-guardar") {
+        const inicio = caja.querySelector("#a-inicio").value;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) c.inicioResidencia = inicio;
+        c.cortarAMedianoche = caja.querySelector("#a-corte").checked;
+        c.especialCortaAMedianoche = caja.querySelector("#a-corte-esp").checked;
+        c.retencionBase = leerPorcentaje(caja, "#a-ret-base", c.retencionBase);
+        c.retencionGuardias = leerPorcentaje(caja, "#a-ret-guardias", c.retencionGuardias);
+        c.retribuciones = leerRetribuciones(caja, r);
+        persistir(); cerrarModal(); pintar();
+      }
+      else if (b.id === "a-copiar") {
+        const campo = caja.querySelector("#a-datos");
+        campo.select();
+        navigator.clipboard.writeText(campo.value).then(
+          () => { b.textContent = "Copiado"; },
+          () => { b.textContent = "Copialo a mano"; });
+      }
+      else if (b.id === "a-importar") {
+        if (importar(caja.querySelector("#a-datos").value)) {
+          persistir(); cerrarModal(); pintar();
+        } else {
+          caja.querySelector("#a-error").textContent =
+            "Ese texto no es una copia valida del cuadrante.";
+        }
+      }
+      else if (b.id === "a-borrar-todo") {
+        // Dos pulsaciones en vez de confirm(): un dialogo modal del navegador
+        // bloquea la pagina y no se puede recuperar desde el artifact.
+        if (b.dataset.confirmado) {
+          Object.assign(estado, estadoInicial());
+          persistir(); cerrarModal(); pintar();
+        } else {
+          b.dataset.confirmado = "1";
+          b.textContent = "Pulsa otra vez para confirmar";
+        }
+      }
+    };
+    caja.oninput = null;
+    raiz.querySelector("#modal").classList.add("abierto");
+  }
+
+  function leerPorcentaje(caja, selector, actual) {
+    const valor = Number(caja.querySelector(selector).value.replace(",", "."));
+    return valor >= 0 && valor < 100 ? Math.round((valor / 100) * 1e6) / 1e6 : actual;
+  }
+
+  // Devuelve null si todo coincide con el anexo, para que quien no toca nada siga
+  // recibiendo las correcciones futuras del codigo en vez de congelar una copia.
+  function leerRetribuciones(caja, actuales) {
+    const guardias = {};
+    let cambiado = false;
+    for (const n of [1, 2, 3, 4, 5]) {
+      guardias[n] = { ...actuales.guardias[n] };
+      for (const tipo of ["laborable", "sdf", "especial"]) {
+        const campo = caja.querySelector(`[data-tarifa="${n}.${tipo}"]`);
+        const valor = Number(campo.value.replace(",", "."));
+        if (valor > 0) guardias[n][tipo] = valor;
+        if (valor > 0 && valor !== RETRIBUCIONES_ANEXO.guardias[n][tipo]) cambiado = true;
+      }
+    }
+    const sueldo = Number(caja.querySelector("#a-sueldo").value.replace(",", "."));
+    const sueldoBase = sueldo > 0 ? sueldo : actuales.sueldoBase;
+    if (sueldoBase !== RETRIBUCIONES_ANEXO.sueldoBase) cambiado = true;
+    return cambiado
+      ? { guardias, sueldoBase, cgFormacion: { ...actuales.cgFormacion } }
+      : null;
+  }
+
+  function importar(texto) {
+    let dato;
+    try {
+      dato = JSON.parse(texto);
+    } catch {
+      return false;
+    }
+    if (!dato || typeof dato !== "object" || !dato.config || !dato.guardias) return false;
+    const limpio = estadoInicial();
+    Object.assign(estado, {
+      ...limpio,
+      ...dato,
+      config: { ...limpio.config, ...dato.config },
+    });
+    return true;
+  }
+
   raiz.addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir");
+    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir");
     if (!b) return;
-    if (b.dataset.pestana) { pestana = b.dataset.pestana; pintar(); }
+    if (b.id === "abrir-ajustes") abrirAjustes();
+    else if (b.id === "b-empezar") {
+      const valor = raiz.querySelector("#b-inicio").value;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+        estado.config.inicioResidencia = valor;
+        persistir(); pintar();
+      }
+    }
+    else if (b.dataset.pestana) { pestana = b.dataset.pestana; pintar(); }
     else if (b.dataset.mes) {
       const [a, m] = mesVisible.split("-").map(Number);
       const d = new Date(a, m - 1 + Number(b.dataset.mes), 1);
