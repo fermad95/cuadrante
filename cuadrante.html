@@ -404,6 +404,19 @@ function inicioSugerido(horas) {
   return INICIO_POR_DURACION[horas] || "15:00";
 }
 
+// El horario no depende de la duracion sino del dia, y sale de dos reglas:
+// se entra a las 15:00 si hoy se trabaja (despues de la jornada ordinaria) o a
+// las 09:00 si no; y se sale a las 08:00 si manana se trabaja o a las 09:00 si
+// no. De ahi salen los cuatro casos reales (L-J 17h, V 18h, S 24h, D 23h) y
+// ademas quedan resueltos los festivos entre semana sin tabla aparte.
+function sugerenciaPara(fechaISO, festivos = {}) {
+  const seTrabajaHoy = clasificarDia(fechaISO, festivos) === "laborable";
+  const seTrabajaManana = clasificarDia(diaSiguiente(fechaISO), festivos) === "laborable";
+  const inicio = seTrabajaHoy ? "15:00" : "09:00";
+  const fin = seTrabajaManana ? "08:00" : "09:00";
+  return { horas: (aMinutos(fin) + 1440 - aMinutos(inicio)) / 60, inicio };
+}
+
 // `festivos` es el mapa de excepciones del usuario, no un calendario completo:
 // el calendario base lo deriva festivos.js a partir del anio de cada fecha.
 function partirGuardia(guardia, festivos, opciones = {}) {
@@ -676,7 +689,7 @@ const PESTANAS = [
   { clave: "nominas", texto: "Nóminas" },
   { clave: "anual", texto: "Anual" },
 ];
-const DURACIONES = [7, 8, 12, 15, 17, 24];
+const DURACIONES = [7, 8, 12, 15, 17, 18, 23, 24];
 const LUGARES = [
   { sigla: "URG", nombre: "Puerta de Urgencias" },
   { sigla: "OBS", nombre: "Observación" },
@@ -866,7 +879,10 @@ function iniciar(raiz, almacen) {
   }
 
   function abrirModal(fecha) {
-    const g = { ...(estado.guardias[fecha] || { horas: 17, inicio: inicioSugerido(17), lugar: "", hecha: false }) };
+    // Una guardia nueva arranca con lo que toca ese dia; una ya guardada, con lo suyo.
+    const sugerida = sugerenciaPara(fecha, estado.festivos);
+    const g = { ...(estado.guardias[fecha]
+      || { horas: sugerida.horas, inicio: sugerida.inicio, lugar: "", hecha: false }) };
     const caja = raiz.querySelector("#caja-modal");
 
     function pintarModal() {
@@ -896,7 +912,9 @@ function iniciar(raiz, almacen) {
     caja.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
-      if (b.dataset.horas) { g.horas = Number(b.dataset.horas); g.inicio = inicioSugerido(g.horas); pintarModal(); }
+      // Cambiar la duracion ya no toca la hora de entrada: esa depende del dia,
+      // no de lo que dure la guardia.
+      if (b.dataset.horas) { g.horas = Number(b.dataset.horas); pintarModal(); }
       else if ("lugar" in b.dataset) { g.lugar = b.dataset.lugar; pintarModal(); }
       else if (b.id === "m-cancelar") cerrarModal();
       else if (b.id === "m-borrar") { delete estado.guardias[fecha]; persistir(); cerrarModal(); pintar(); }

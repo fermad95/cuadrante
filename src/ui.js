@@ -1,6 +1,6 @@
 // src/ui.js
 import { diasDelMes, diaSemana, redondear } from "./fechas.js";
-import { inicioSugerido, calcularGuardia } from "./motor.js";
+import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos } from "./nomina.js";
 import { cargar, guardar, estadoInicial } from "./estado.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
@@ -15,7 +15,7 @@ const PESTANAS = [
   { clave: "nominas", texto: "Nóminas" },
   { clave: "anual", texto: "Anual" },
 ];
-const DURACIONES = [7, 8, 12, 15, 17, 24];
+const DURACIONES = [7, 8, 12, 15, 17, 18, 23, 24];
 const LUGARES = [
   { sigla: "URG", nombre: "Puerta de Urgencias" },
   { sigla: "OBS", nombre: "Observación" },
@@ -205,7 +205,10 @@ export function iniciar(raiz, almacen) {
   }
 
   function abrirModal(fecha) {
-    const g = { ...(estado.guardias[fecha] || { horas: 17, inicio: inicioSugerido(17), lugar: "", hecha: false }) };
+    // Una guardia nueva arranca con lo que toca ese dia; una ya guardada, con lo suyo.
+    const sugerida = sugerenciaPara(fecha, estado.festivos);
+    const g = { ...(estado.guardias[fecha]
+      || { horas: sugerida.horas, inicio: sugerida.inicio, lugar: "", hecha: false }) };
     const caja = raiz.querySelector("#caja-modal");
 
     function pintarModal() {
@@ -235,7 +238,9 @@ export function iniciar(raiz, almacen) {
     caja.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
-      if (b.dataset.horas) { g.horas = Number(b.dataset.horas); g.inicio = inicioSugerido(g.horas); pintarModal(); }
+      // Cambiar la duracion ya no toca la hora de entrada: esa depende del dia,
+      // no de lo que dure la guardia.
+      if (b.dataset.horas) { g.horas = Number(b.dataset.horas); pintarModal(); }
       else if ("lugar" in b.dataset) { g.lugar = b.dataset.lugar; pintarModal(); }
       else if (b.id === "m-cancelar") cerrarModal();
       else if (b.id === "m-borrar") { delete estado.guardias[fecha]; persistir(); cerrarModal(); pintar(); }

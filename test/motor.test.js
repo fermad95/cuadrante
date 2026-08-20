@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inicioSugerido, partirGuardia, calcularGuardia } from "../src/motor.js";
+import { inicioSugerido, sugerenciaPara, partirGuardia, calcularGuardia } from "../src/motor.js";
 
 const CONFIG = { inicioResidencia: "2026-05-27" };
 
@@ -116,4 +116,29 @@ test("las tarifas siguen al anio de residencia", () => {
   const r = calcularGuardia(
     { fecha: "2027-06-10", horas: 17, inicio: "15:00" }, {}, CONFIG);
   assert.equal(r.bruto, 262.14); // 17 x 15.42, R2
+});
+
+test("la sugerencia sale del dia: entrada segun hoy, salida segun manana", () => {
+  // 2026-08-03 lunes, 04 martes, 05 miercoles, 06 jueves
+  for (const fecha of ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]) {
+    assert.deepEqual(sugerenciaPara(fecha, {}), { horas: 17, inicio: "15:00" }, fecha);
+  }
+  assert.deepEqual(sugerenciaPara("2026-08-07", {}), { horas: 18, inicio: "15:00" }); // viernes
+  assert.deepEqual(sugerenciaPara("2026-08-08", {}), { horas: 24, inicio: "09:00" }); // sabado
+  assert.deepEqual(sugerenciaPara("2026-08-09", {}), { horas: 23, inicio: "09:00" }); // domingo
+});
+
+test("un festivo entre semana se comporta como fin de semana", () => {
+  // 2026-01-01 es jueves y festivo derivado; el viernes 2 es laborable
+  assert.deepEqual(sugerenciaPara("2026-01-01", {}), { horas: 23, inicio: "09:00" });
+});
+
+test("la vispera de un festivo alarga la guardia hasta las 09:00", () => {
+  // 2026-04-01 miercoles laborable; el 2 es Jueves Santo
+  assert.deepEqual(sugerenciaPara("2026-04-01", {}), { horas: 18, inicio: "15:00" });
+});
+
+test("dos festivos seguidos dan una guardia de 24h", () => {
+  // 2026-04-02 Jueves Santo y 2026-04-03 Viernes Santo
+  assert.deepEqual(sugerenciaPara("2026-04-02", {}), { horas: 24, inicio: "09:00" });
 });
