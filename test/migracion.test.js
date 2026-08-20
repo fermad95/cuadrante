@@ -61,3 +61,74 @@ test("cargar migra automaticamente si solo existe la clave v5", () => {
   assert.equal(e.version, 6);
   assert.equal(e.guardias["2026-08-05"].lugar, "OBS");
 });
+
+// ---- Importacion desde la copia de seguridad ----
+import { importarEstado } from "../src/estado.js";
+
+test("importar un JSON valido de v6 lo devuelve entero", () => {
+  const r = importarEstado(JSON.stringify({
+    version: 6, config: { inicioResidencia: "2026-05-27" },
+    guardias: { "2026-08-05": { horas: 17, inicio: "15:00" } },
+    festivos: {}, nominas: [],
+  }));
+  assert.equal(r.ok, true);
+  assert.equal(r.estado.guardias["2026-08-05"].horas, 17);
+  assert.equal(r.descartadas, 0);
+});
+
+test("importar un JSON con forma de v5 lo migra", () => {
+  const r = importarEstado(JSON.stringify(V5));
+  assert.equal(r.ok, true);
+  assert.equal(r.estado.version, 6);
+  // Ano Nuevo coincide con el derivado, asi que no debe quedar excepcion
+  assert.equal(r.estado.festivos["2026-01-01"], undefined);
+  assert.equal(r.estado.festivos["2026-09-08"].nombre, "Ntra. Sra. de la Fuensanta");
+});
+
+test("importar texto que no es JSON falla sin romper", () => {
+  assert.equal(importarEstado("{roto").ok, false);
+  assert.equal(importarEstado("").ok, false);
+  assert.equal(importarEstado("[1,2,3]").ok, false);
+});
+
+test("importar sin las claves minimas falla", () => {
+  assert.equal(importarEstado(JSON.stringify({ hola: 1 })).ok, false);
+  assert.equal(importarEstado(JSON.stringify({ config: {}, guardias: "no soy un objeto" })).ok, false);
+});
+
+test("las guardias invalidas se descartan en vez de reventar", () => {
+  const r = importarEstado(JSON.stringify({
+    version: 6, config: {}, festivos: {}, nominas: [],
+    guardias: {
+      "2026-08-05": { horas: 17, inicio: "15:00" },
+      "2026-08-06": { horas: -5, inicio: "15:00" },
+      "2026-08-07": { horas: 0, inicio: "15:00" },
+      "2026-08-08": { horas: 17, inicio: "veinticinco" },
+      "no-es-fecha": { horas: 17, inicio: "15:00" },
+    },
+  }));
+  assert.equal(r.ok, true);
+  assert.deepEqual(Object.keys(r.estado.guardias), ["2026-08-05"]);
+  assert.equal(r.descartadas, 4);
+});
+
+test("las nominas invalidas se descartan", () => {
+  const r = importarEstado(JSON.stringify({
+    version: 6, config: {}, festivos: {}, guardias: {},
+    nominas: [
+      { periodo: "2026-07", clase: "base", bruto: 100, neto: 90 },
+      { periodo: "julio", clase: "base", bruto: 100, neto: 90 },
+      { periodo: "2026-08", clase: "otra", bruto: 100, neto: 90 },
+      { periodo: "2026-09", clase: "base", bruto: 100, neto: 120 },
+    ],
+  }));
+  assert.equal(r.estado.nominas.length, 1);
+  assert.equal(r.descartadas, 3);
+});
+
+test("el tema no se importa: cada uno conserva el suyo", () => {
+  const r = importarEstado(JSON.stringify({
+    version: 6, config: { tema: "espacial" }, guardias: {}, festivos: {}, nominas: [],
+  }));
+  assert.equal(r.estado.config.tema, undefined);
+});

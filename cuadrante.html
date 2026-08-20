@@ -919,6 +919,76 @@ function migrarV5(v5) {
   };
 }
 
+const ES_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const ES_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const ES_PERIODO = /^\d{4}-\d{2}$/;
+
+function guardiaValida(fecha, g) {
+  return ES_FECHA.test(fecha) && g && typeof g === "object"
+    && typeof g.horas === "number" && g.horas > 0 && g.horas <= 48
+    && (g.inicio === undefined || ES_HORA.test(g.inicio));
+}
+
+function nominaValida(n) {
+  return n && typeof n === "object"
+    && ES_PERIODO.test(n.periodo)
+    && (n.clase === "base" || n.clase === "guardias")
+    && typeof n.bruto === "number" && n.bruto > 0
+    && typeof n.neto === "number" && n.neto > 0 && n.neto <= n.bruto;
+}
+
+// Importa una copia de seguridad pegada a mano. Descarta lo que no sea valido en
+// vez de rechazar el lote entero: una copia casi buena sigue sirviendo, y se
+// informa de cuantas entradas se han caido. El tema no se importa a proposito:
+// es una preferencia de cada dispositivo, no un dato del usuario.
+function importarEstado(texto) {
+  let dato;
+  try {
+    dato = JSON.parse(texto);
+  } catch {
+    return { ok: false, error: "Eso no es un JSON valido." };
+  }
+  if (!dato || typeof dato !== "object" || Array.isArray(dato)) {
+    return { ok: false, error: "Eso no es una copia del cuadrante." };
+  }
+  if (!dato.config || typeof dato.config !== "object"
+      || !dato.guardias || typeof dato.guardias !== "object" || Array.isArray(dato.guardias)) {
+    return { ok: false, error: "A esa copia le faltan datos del cuadrante." };
+  }
+
+  const base = Number(dato.version) >= 6 ? dato : migrarV5(dato);
+  const inicial = estadoInicial();
+  let descartadas = 0;
+
+  const guardias = {};
+  for (const [fecha, g] of Object.entries(base.guardias || {})) {
+    if (guardiaValida(fecha, g)) guardias[fecha] = g;
+    else descartadas += 1;
+  }
+
+  const nominas = [];
+  for (const n of Array.isArray(base.nominas) ? base.nominas : []) {
+    if (nominaValida(n)) nominas.push(n);
+    else descartadas += 1;
+  }
+
+  const config = { ...inicial.config, ...(base.config || {}) };
+  delete config.tema;
+
+  return {
+    ok: true,
+    descartadas,
+    estado: {
+      ...inicial,
+      config,
+      guardias,
+      nominas,
+      festivos: base.festivos && typeof base.festivos === "object" ? base.festivos : {},
+      version: 6,
+    },
+  };
+}
+
 function leerJSON(almacen, clave) {
   try {
     const crudo = almacen.getItem(clave);
@@ -1101,6 +1171,8 @@ function iniciar(raiz, almacen) {
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
     const c = compararHipotesis(mesVisible, estado);
+    const sinMarcar = Object.entries(estado.guardias)
+      .filter(([f, g]) => f.slice(0, 7) === mesVisible && !g.hecha).length;
 
     return `
       <div class="tarjeta">
@@ -1128,6 +1200,10 @@ function iniciar(raiz, almacen) {
           <tr><td>Neto de las guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
           <tr><td class="total">Total neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
         </table>
+        ${sinMarcar > 0 ? `<div class="chips" style="margin-top:.9rem">
+          <button id="marcar-mes">Marcar ${sinMarcar === 1
+            ? "la guardia pendiente" : `las ${sinMarcar} guardias pendientes`} como realizada${sinMarcar === 1 ? "" : "s"}</button>
+        </div>` : ""}
         ${c.difieren ? `<p class="aviso">${AVISO_SIN_VERIFICAR}<br>
           Con corte: ${eur(c.conCorte.brutoGuardias)} · sin corte: ${eur(c.sinCorte.brutoGuardias)}
           · difieren en ${eur(c.diferencia)}.</p>` : ""}
@@ -1404,11 +1480,18 @@ function iniciar(raiz, almacen) {
           () => { b.textContent = "Copialo a mano"; });
       }
       else if (b.id === "a-importar") {
-        if (importar(caja.querySelector("#a-datos").value)) {
-          persistir(); cerrarModal(); pintar();
+        const r = importarEstado(caja.querySelector("#a-datos").value);
+        if (!r.ok) {
+          caja.querySelector("#a-error").textContent = r.error;
         } else {
-          caja.querySelector("#a-error").textContent =
-            "Ese texto no es una copia válida del cuadrante.";
+          // El tema no viene en la copia: se conserva el de este dispositivo.
+          const tema = estado.config.tema;
+          Object.assign(estado, r.estado);
+          estado.config.tema = tema;
+          persistir(); cerrarModal(); pintar();
+          if (r.descartadas > 0) {
+            avisarDescartes(r.descartadas);
+          }
         }
       }
       else if (b.id === "a-borrar-todo") {
@@ -1454,25 +1537,19 @@ function iniciar(raiz, almacen) {
       : null;
   }
 
-  function importar(texto) {
-    let dato;
-    try {
-      dato = JSON.parse(texto);
-    } catch {
-      return false;
-    }
-    if (!dato || typeof dato !== "object" || !dato.config || !dato.guardias) return false;
-    const limpio = estadoInicial();
-    Object.assign(estado, {
-      ...limpio,
-      ...dato,
-      config: { ...limpio.config, ...dato.config },
-    });
-    return true;
+  // Se avisa en la propia vista, no con alert(): un dialogo del navegador
+  // bloquea la pagina y desde el artifact no hay forma de recuperarla.
+  function avisarDescartes(cuantas) {
+    const vista = raiz.querySelector("#vista");
+    const nota = document.createElement("p");
+    nota.className = "aviso";
+    nota.textContent = `Se importó la copia, pero ${cuantas} `
+      + `${cuantas === 1 ? "entrada no era válida y se descartó" : "entradas no eran válidas y se descartaron"}.`;
+    vista.prepend(nota);
   }
 
   raiz.addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir");
+    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir, #marcar-mes");
     if (!b) return;
     if (b.id === "abrir-ajustes") abrirAjustes();
     else if (b.id === "b-empezar") {
@@ -1502,6 +1579,12 @@ function iniciar(raiz, almacen) {
       if (derivado && derivado.clase === nueva) delete estado.festivos[fecha];
       else if (derivado) estado.festivos[fecha] = { clase: nueva };
       else estado.festivos[fecha] = { nombre: actual.nombre, clase: nueva };
+      persistir(); pintar();
+    }
+    else if (b.id === "marcar-mes") {
+      for (const [fecha, g] of Object.entries(estado.guardias)) {
+        if (fecha.slice(0, 7) === mesVisible) g.hecha = true;
+      }
       persistir(); pintar();
     }
     else if (b.id === "f-anadir") {
