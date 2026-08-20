@@ -44,6 +44,7 @@ export function iniciar(raiz, almacen) {
   const persistir = () => guardar(almacen, estado);
 
   function pintar() {
+    document.documentElement.dataset.tema = estado.config.tema || "sobrio";
     if (!estado.config.inicioResidencia) return pintarBienvenida();
     raiz.querySelector("#pestanas").hidden = false;
     raiz.querySelector("#pestanas").innerHTML = PESTANAS
@@ -62,8 +63,9 @@ export function iniciar(raiz, almacen) {
     raiz.querySelector("#vista").innerHTML = `
       <div class="tarjeta">
         <strong class="etiqueta">Empecemos</strong>
-        <p>Para calcular tus guardias necesito saber cuándo empezaste la residencia.
-           De esa fecha salen tu año (R1 a R5) y las tarifas que te corresponden.</p>
+        <div class="crawl"><p>Para calcular tus guardias necesito saber cuándo empezaste
+           la residencia. De esa fecha salen tu año (R1 a R5) y las tarifas que te
+           corresponden.</p></div>
         <p class="etiqueta-campo">Fecha de inicio</p>
         <input type="date" id="b-inicio" value="">
         <div class="acciones-modal">
@@ -284,6 +286,12 @@ export function iniciar(raiz, almacen) {
     caja.innerHTML = `
       <strong class="modal-fecha">Ajustes</strong>
 
+      <p class="etiqueta-campo">Aspecto</p>
+      <div class="chips">
+        <button data-tema="sobrio" class="${(c.tema || "sobrio") === "sobrio" ? "activo" : ""}">Sobrio</button>
+        <button data-tema="espacial" class="${c.tema === "espacial" ? "activo" : ""}">Una galaxia muy lejana</button>
+      </div>
+
       <p class="etiqueta-campo">Inicio de residencia</p>
       <input type="date" id="a-inicio" value="${c.inicioResidencia || ""}">
 
@@ -327,7 +335,13 @@ export function iniciar(raiz, almacen) {
     caja.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
-      if (b.id === "a-cancelar") cerrarModal();
+      if (b.dataset.tema) {
+        c.tema = b.dataset.tema;
+        document.documentElement.dataset.tema = c.tema;
+        persistir();
+        abrirAjustes(); // se repinta para que el boton activo sea el nuevo
+      }
+      else if (b.id === "a-cancelar") cerrarModal();
       else if (b.id === "a-guardar") {
         const inicio = caja.querySelector("#a-inicio").value;
         if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) c.inicioResidencia = inicio;

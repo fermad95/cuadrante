@@ -14,6 +14,7 @@ export function estadoInicial() {
       retencionBase: 0.089753,
       retencionGuardias: 0.032609,
       retribuciones: null,
+      tema: "sobrio", // "sobrio" | "espacial"
     },
     guardias: {},
     festivos: {},

@@ -16,6 +16,7 @@
   --especial: #cf6f8d;
   --acento: #8c7cf2;
   --peligro: #d9827c;
+  --celda: #0e1319;
 
   --serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -115,7 +116,7 @@ h1.marca {
 }
 .dia {
   aspect-ratio: 1; border: 1px solid var(--borde-sutil); border-radius: 10px;
-  background: #0e1319; padding: 4px; text-align: center; cursor: pointer;
+  background: var(--celda); padding: 4px; text-align: center; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1px;
 }
@@ -124,9 +125,9 @@ h1.marca {
 .dia .horas { font-size: 10px; color: var(--tenue); font-family: var(--mono); }
 /* La declaracion plana va antes del color-mix como reserva: un navegador sin
    soporte descarta la segunda y conserva el color, en vez de perderlo entero. */
-.dia.laborable { border-color: var(--laborable); border-color: color-mix(in srgb, var(--laborable) 55%, var(--borde)); background: #101a1d; background: color-mix(in srgb, var(--laborable) 10%, #0e1319); }
-.dia.sdf { border-color: var(--sdf); border-color: color-mix(in srgb, var(--sdf) 55%, var(--borde)); background: #1a1712; background: color-mix(in srgb, var(--sdf) 10%, #0e1319); }
-.dia.especial { border-color: var(--especial); border-color: color-mix(in srgb, var(--especial) 55%, var(--borde)); background: #1a1216; background: color-mix(in srgb, var(--especial) 12%, #0e1319); }
+.dia.laborable { border-color: var(--laborable); border-color: color-mix(in srgb, var(--laborable) 55%, var(--borde)); background: #101a1d; background: color-mix(in srgb, var(--laborable) 10%, var(--celda)); }
+.dia.sdf { border-color: var(--sdf); border-color: color-mix(in srgb, var(--sdf) 55%, var(--borde)); background: #1a1712; background: color-mix(in srgb, var(--sdf) 10%, var(--celda)); }
+.dia.especial { border-color: var(--especial); border-color: color-mix(in srgb, var(--especial) 55%, var(--borde)); background: #1a1216; background: color-mix(in srgb, var(--especial) 12%, var(--celda)); }
 .dia.laborable .num { color: var(--laborable); }
 .dia.sdf .num { color: var(--sdf); }
 .dia.especial .num { color: var(--especial); }
@@ -189,22 +190,113 @@ tr:has(.total) td { border-bottom: none; border-top: 1px solid var(--borde); pad
 
 /* Controles */
 button, input, select {
-  background: #0e1319; color: var(--texto); border: 1px solid var(--borde);
+  background: var(--celda); color: var(--texto); border: 1px solid var(--borde);
   border-radius: 9px; padding: .5rem .75rem; font: inherit; font-size: 14px;
 }
 button { cursor: pointer; }
-button.activo { border-color: var(--acento); color: var(--acento); background: #16151f; background: color-mix(in srgb, var(--acento) 14%, #0e1319); }
+button.activo { border-color: var(--acento); color: var(--acento); background: #16151f; background: color-mix(in srgb, var(--acento) 14%, var(--celda)); }
 /* Neutraliza el reset de controles para las celdas del calendario, que pasaron
    de div a button por accesibilidad. Va despues del bloque button/input/select. */
 .dia { font: inherit; color: inherit; }
 textarea {
-  width: 100%; background: #0e1319; color: var(--texto); border: 1px solid var(--borde);
+  width: 100%; background: var(--celda); color: var(--texto); border: 1px solid var(--borde);
   border-radius: 9px; padding: .5rem .75rem; font-family: var(--mono); font-size: 12px;
   resize: vertical;
 }
 button.primario { background: var(--acento); color: #0a0d11; border-color: var(--acento); font-weight: 600; }
 button.peligro { color: var(--peligro); border-color: color-mix(in srgb, var(--peligro) 45%, var(--borde)); }
-button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, #0e1319); }
+button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, var(--celda)); }
+
+/* ---------------------------------------------------------------
+   Tema espacial. Ambientacion propia: no usa logotipos, tipografia
+   oficial ni nombres de personajes. Solo redefine los tokens y
+   anade el campo de estrellas, el crawl y el brillo de sable.
+   --------------------------------------------------------------- */
+:root[data-tema="espacial"] {
+  --fondo: #05070d;
+  --superficie: #0b1020;
+  --superficie-alta: #121a2e;
+  --borde: #24304d;
+  --borde-sutil: #161f36;
+  --texto: #e8ecf5;
+  --tenue: #8290ad;
+  --laborable: #4ea8ff;  /* sable azul */
+  --sdf: #57e389;        /* sable verde */
+  --especial: #ff5b5b;   /* sable rojo */
+  --acento: #ffd54a;     /* el amarillo del rotulo */
+  --peligro: #ff6b5e;
+  --celda: #080d1a;
+}
+
+/* Campo de estrellas: tres capas tileadas, sin imagenes ni JS. */
+:root[data-tema="espacial"] body {
+  background-color: var(--fondo);
+  background-image:
+    radial-gradient(1.4px 1.4px at 18% 22%, rgba(255,255,255,.85), transparent),
+    radial-gradient(1.1px 1.1px at 72% 14%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.6px 1.6px at 41% 68%, rgba(255,255,255,.9), transparent),
+    radial-gradient(1px 1px at 88% 54%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.2px 1.2px at 9% 81%, rgba(255,255,255,.75), transparent),
+    radial-gradient(1px 1px at 57% 93%, rgba(255,255,255,.55), transparent),
+    radial-gradient(1.3px 1.3px at 30% 45%, rgba(180,215,255,.7), transparent),
+    radial-gradient(1px 1px at 95% 88%, rgba(255,235,180,.6), transparent),
+    radial-gradient(circle at 78% 12%, rgba(78,168,255,.10), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(255,213,74,.07), transparent 45%);
+  background-size: 340px 340px, 340px 340px, 500px 500px, 500px 500px,
+                   260px 260px, 260px 260px, 700px 700px, 700px 700px,
+                   100% 100%, 100% 100%;
+  background-attachment: fixed;
+}
+
+/* Rotulos y titulos: mayusculas muy espaciadas. */
+:root[data-tema="espacial"] h1.marca {
+  font-family: var(--sans); font-weight: 800;
+  text-transform: uppercase; letter-spacing: .12em;
+  font-size: 1.5rem; color: var(--acento);
+  text-shadow: 0 0 18px rgba(255,213,74,.35);
+}
+:root[data-tema="espacial"] .mes-titulo,
+:root[data-tema="espacial"] .modal-fecha {
+  font-family: var(--sans); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; font-size: 1.05rem;
+}
+:root[data-tema="espacial"] .etiqueta { color: var(--acento); opacity: .85; }
+
+/* La cifra que importa brilla como una hoja de sable. */
+:root[data-tema="espacial"] .total.cifra,
+:root[data-tema="espacial"] td.cifra.total {
+  font-family: var(--mono); font-size: 1.25rem;
+  text-shadow: 0 0 14px currentColor;
+}
+:root[data-tema="espacial"] .tarjeta {
+  box-shadow: 0 0 0 1px rgba(78,168,255,.06) inset, 0 10px 30px -18px rgba(0,0,0,.9);
+}
+:root[data-tema="espacial"] .dia.hoy {
+  box-shadow: 0 0 0 1px var(--acento) inset, 0 0 12px -2px rgba(255,213,74,.5);
+}
+:root[data-tema="espacial"] .pestanas button.activo { color: #05070d; }
+
+/* Crawl: el texto de bienvenida en perspectiva. Solo el parrafo, para que
+   el campo de fecha y el boton sigan siendo usables. */
+.crawl p { margin: 0; }
+:root[data-tema="espacial"] .crawl {
+  perspective: 260px; margin: .5rem 0 1.25rem;
+}
+:root[data-tema="espacial"] .crawl p {
+  transform: rotateX(28deg); transform-origin: 50% 100%;
+  color: var(--acento); text-align: center; text-wrap: balance;
+  font-weight: 600; letter-spacing: .03em; line-height: 1.45;
+  text-shadow: 0 0 12px rgba(255,213,74,.3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-tema="espacial"] .crawl p {
+    animation: alejarse 1.2s ease-out both;
+  }
+}
+@keyframes alejarse {
+  from { transform: rotateX(52deg) translateY(30px); opacity: 0; }
+  to   { transform: rotateX(28deg) translateY(0); opacity: 1; }
+}
 </style>
 <header class="cabecera">
   <div>
@@ -615,6 +707,7 @@ function estadoInicial() {
       retencionBase: 0.089753,
       retencionGuardias: 0.032609,
       retribuciones: null,
+      tema: "sobrio", // "sobrio" | "espacial"
     },
     guardias: {},
     festivos: {},
@@ -718,6 +811,7 @@ function iniciar(raiz, almacen) {
   const persistir = () => guardar(almacen, estado);
 
   function pintar() {
+    document.documentElement.dataset.tema = estado.config.tema || "sobrio";
     if (!estado.config.inicioResidencia) return pintarBienvenida();
     raiz.querySelector("#pestanas").hidden = false;
     raiz.querySelector("#pestanas").innerHTML = PESTANAS
@@ -736,8 +830,9 @@ function iniciar(raiz, almacen) {
     raiz.querySelector("#vista").innerHTML = `
       <div class="tarjeta">
         <strong class="etiqueta">Empecemos</strong>
-        <p>Para calcular tus guardias necesito saber cuándo empezaste la residencia.
-           De esa fecha salen tu año (R1 a R5) y las tarifas que te corresponden.</p>
+        <div class="crawl"><p>Para calcular tus guardias necesito saber cuándo empezaste
+           la residencia. De esa fecha salen tu año (R1 a R5) y las tarifas que te
+           corresponden.</p></div>
         <p class="etiqueta-campo">Fecha de inicio</p>
         <input type="date" id="b-inicio" value="">
         <div class="acciones-modal">
@@ -958,6 +1053,12 @@ function iniciar(raiz, almacen) {
     caja.innerHTML = `
       <strong class="modal-fecha">Ajustes</strong>
 
+      <p class="etiqueta-campo">Aspecto</p>
+      <div class="chips">
+        <button data-tema="sobrio" class="${(c.tema || "sobrio") === "sobrio" ? "activo" : ""}">Sobrio</button>
+        <button data-tema="espacial" class="${c.tema === "espacial" ? "activo" : ""}">Una galaxia muy lejana</button>
+      </div>
+
       <p class="etiqueta-campo">Inicio de residencia</p>
       <input type="date" id="a-inicio" value="${c.inicioResidencia || ""}">
 
@@ -1001,7 +1102,13 @@ function iniciar(raiz, almacen) {
     caja.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
-      if (b.id === "a-cancelar") cerrarModal();
+      if (b.dataset.tema) {
+        c.tema = b.dataset.tema;
+        document.documentElement.dataset.tema = c.tema;
+        persistir();
+        abrirAjustes(); // se repinta para que el boton activo sea el nuevo
+      }
+      else if (b.id === "a-cancelar") cerrarModal();
       else if (b.id === "a-guardar") {
         const inicio = caja.querySelector("#a-inicio").value;
         if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) c.inicioResidencia = inicio;
