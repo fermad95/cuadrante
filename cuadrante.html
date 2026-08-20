@@ -4,73 +4,191 @@
 <style>
 /* src/estilos.css */
 :root {
-  --fondo: #05080a;
-  --tarjeta: #0d1418;
-  --borde: #1c2b33;
-  --texto: #c8d6db;
-  --tenue: #5b7280;
-  --laborable: #22d3ee;
-  --sdf: #eab308;
-  --especial: #ec4899;
-  --acento: #22c55e;
+  --fondo: #0a0d11;
+  --superficie: #12161d;
+  --superficie-alta: #1a212a;
+  --borde: #232b35;
+  --borde-sutil: #1a212a;
+  --texto: #edf0f3;
+  --tenue: #7f8b98;
+  --laborable: #63b6a6;
+  --sdf: #d6a24a;
+  --especial: #cf6f8d;
+  --acento: #8c7cf2;
+  --peligro: #d9827c;
+
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, monospace;
 }
+
 * { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
 body {
-  margin: 0; padding: 1rem;
+  margin: 0; padding: 1.1rem 1rem 3rem;
   background: var(--fondo); color: var(--texto);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 15px; line-height: 1.5;
+  font-family: var(--sans);
+  font-size: 15px; line-height: 1.55;
+  max-width: 560px; margin-inline: auto;
 }
+
+::selection { background: color-mix(in srgb, var(--acento) 35%, transparent); color: var(--texto); }
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--acento); outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tarjeta, button, #modal .caja { transition: border-color .15s ease, background-color .15s ease, transform .1s ease; }
+}
+
+/* Cabecera / marca */
+.cabecera { padding: .25rem 0 1.1rem; }
+.marca {
+  margin: 0; font-family: var(--serif); font-weight: 600;
+  font-size: 1.9rem; letter-spacing: -.01em; text-wrap: balance;
+}
+.submarca {
+  margin: .15rem 0 0; color: var(--tenue); font-size: 12.5px;
+  font-family: var(--mono); letter-spacing: .02em;
+}
+
+/* Navegacion por pestanas: control segmentado */
+.pestanas {
+  display: flex; gap: 2px; margin-bottom: 1.1rem; flex-wrap: wrap;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 11px; padding: 3px;
+}
+.pestanas button {
+  flex: 1 1 auto; border: none; background: none; color: var(--tenue);
+  padding: .45rem .6rem; border-radius: 8px; font-size: 13.5px;
+  font-weight: 500; text-transform: capitalize;
+}
+.pestanas button.activo { color: var(--fondo); background: var(--acento); }
+
+/* Tarjetas */
 .tarjeta {
-  background: var(--tarjeta); border: 1px solid var(--borde);
-  border-radius: 12px; padding: 1rem; margin-bottom: 1rem;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 16px; padding: 1.15rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 8px 20px -12px rgba(0,0,0,.5);
 }
+
+.etiqueta {
+  display: block; font-family: var(--mono); font-size: 11.5px;
+  letter-spacing: .04em; color: var(--tenue); font-weight: 500;
+  margin-bottom: .6rem;
+}
+
+.tenue { color: var(--tenue); }
+
+/* Cabecera de mes */
+.cabecera-mes { display: flex; justify-content: space-between; align-items: center; }
+.mes-titulo {
+  font-family: var(--serif); font-weight: 600; font-size: 1.25rem;
+  text-transform: capitalize; letter-spacing: -.005em;
+}
+.mes-anio { color: var(--tenue); font-weight: 400; }
+.nav-mes {
+  width: 2rem; height: 2rem; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; line-height: 1; color: var(--tenue);
+}
+.nav-mes:hover { color: var(--texto); border-color: var(--tenue); }
+
+/* Calendario */
 .rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cabecera-semana {
+  color: var(--tenue); font-size: 11px; text-align: center;
+  font-family: var(--mono); letter-spacing: .03em;
+}
 .dia {
-  aspect-ratio: 1; border: 1px solid var(--borde); border-radius: 8px;
-  background: #0a1114; padding: 6px; text-align: center; cursor: pointer;
+  aspect-ratio: 1; border: 1px solid var(--borde-sutil); border-radius: 10px;
+  background: #0e1319; padding: 4px; text-align: center; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
 }
 .dia:hover { border-color: var(--tenue); }
-.dia.hoy { border-color: var(--acento); color: var(--acento); }
-.dia .horas { font-size: 11px; }
-.dia.laborable { border-color: var(--laborable); }
-.dia.sdf { border-color: var(--sdf); }
-.dia.especial { border-color: var(--especial); }
-.dia .lugar { font-size: 10px; color: var(--sdf); }
-.dia .cruza { font-size: 9px; color: var(--tenue); }
-.cabecera-semana { color: var(--tenue); font-size: 12px; text-align: center; }
+.dia .num { font-size: 13px; font-variant-numeric: tabular-nums; }
+.dia.hoy { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; }
+.dia.hoy .num { color: var(--acento); font-weight: 600; }
+.dia .horas { font-size: 10px; color: var(--tenue); font-family: var(--mono); }
+.dia.laborable { border-color: color-mix(in srgb, var(--laborable) 55%, var(--borde)); background: color-mix(in srgb, var(--laborable) 10%, #0e1319); }
+.dia.sdf { border-color: color-mix(in srgb, var(--sdf) 55%, var(--borde)); background: color-mix(in srgb, var(--sdf) 10%, #0e1319); }
+.dia.especial { border-color: color-mix(in srgb, var(--especial) 55%, var(--borde)); background: color-mix(in srgb, var(--especial) 12%, #0e1319); }
+.dia.laborable .num { color: var(--laborable); }
+.dia.sdf .num { color: var(--sdf); }
+.dia.especial .num { color: var(--especial); }
+.dia .lugar { font-size: 9px; color: var(--tenue); font-family: var(--mono); letter-spacing: .02em; }
+.dia .cruza { font-size: 8.5px; color: var(--tenue); text-transform: uppercase; letter-spacing: .04em; }
+
+/* Avisos */
 .aviso {
-  border-left: 3px solid var(--sdf); padding-left: .75rem;
-  color: var(--tenue); font-size: 13px; margin: .75rem 0;
+  border-left: 2px solid var(--sdf); padding: .1rem .8rem;
+  color: var(--tenue); font-size: 12.5px; margin: .85rem 0 0; line-height: 1.5;
 }
+
+/* Tablas y cifras */
+table { width: 100%; border-collapse: collapse; }
+td { padding: .38rem 0; font-size: 14px; }
+td.cifra { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr:not(:last-child) td { border-bottom: 1px solid var(--borde-sutil); }
+.total { color: var(--texto); font-weight: 600; }
+.total.cifra, td.cifra.total {
+  font-size: 1.35rem; font-family: var(--serif); font-weight: 600; color: var(--acento);
+}
+tr:has(.total) td { border-bottom: none; border-top: 1px solid var(--borde); padding-top: .6rem; }
+
+.punto {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: .45rem; vertical-align: middle;
+}
+.punto-laborable { background: var(--laborable); }
+.punto-sdf { background: var(--sdf); }
+.punto-especial { background: var(--especial); }
+
+/* Modal */
 #modal {
-  position: fixed; inset: 0; background: #000c; display: none;
+  position: fixed; inset: 0; background: rgba(5,7,10,.72); display: none;
   align-items: center; justify-content: center; padding: 1rem; z-index: 10;
+  backdrop-filter: blur(3px);
 }
 #modal.abierto { display: flex; }
 #modal .caja {
-  background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px;
-  padding: 1.25rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+  background: var(--superficie-alta); border: 1px solid var(--borde); border-radius: 18px;
+  padding: 1.35rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.6);
 }
+.modal-fecha { display: block; font-family: var(--serif); font-size: 1.3rem; font-weight: 600; margin-bottom: .9rem; }
+.etiqueta-campo {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--tenue); margin: 1rem 0 .4rem;
+}
+.etiqueta-campo:first-of-type { margin-top: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.acciones-modal { display: flex; gap: .5rem; margin-top: 1.25rem; }
+.acciones-modal #m-guardar { margin-left: auto; }
+
+.formulario { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .85rem; }
+
+/* Controles */
 button, input, select {
-  background: #0a1114; color: var(--texto); border: 1px solid var(--borde);
-  border-radius: 8px; padding: .5rem .75rem; font: inherit;
+  background: #0e1319; color: var(--texto); border: 1px solid var(--borde);
+  border-radius: 9px; padding: .5rem .75rem; font: inherit; font-size: 14px;
 }
 button { cursor: pointer; }
-button.activo { border-color: var(--laborable); color: var(--laborable); }
-button.primario { background: var(--laborable); color: #05080a; border-color: var(--laborable); }
-table { width: 100%; border-collapse: collapse; }
-td { padding: .25rem 0; }
-td.cifra { text-align: right; }
-.total { color: var(--acento); font-weight: bold; }
-.pestanas { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.pestanas button { border: none; background: none; color: var(--tenue); padding: .25rem 0; }
-.pestanas button.activo { color: var(--laborable); border-bottom: 2px solid var(--laborable); }
+button.activo { border-color: var(--acento); color: var(--acento); background: color-mix(in srgb, var(--acento) 14%, #0e1319); }
+button.primario { background: var(--acento); color: #0a0d11; border-color: var(--acento); font-weight: 600; }
+button.peligro { color: var(--peligro); border-color: color-mix(in srgb, var(--peligro) 45%, var(--borde)); }
+button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, #0e1319); }
 </style>
-<h1>cuadrante_</h1>
-<p class="tenue">MIR · SAS R. 0002/2026</p>
-<div class="pestanas" id="pestanas"></div>
+<header class="cabecera">
+  <p class="marca">Cuadrante</p>
+  <p class="submarca">MIR · SAS R. 0002/2026</p>
+</header>
+<nav class="pestanas" id="pestanas"></nav>
 <div id="vista"></div>
 <div id="modal"><div class="caja" id="caja-modal"></div></div>
 <script type="module">
@@ -453,6 +571,11 @@ const AVISO_SIN_VERIFICAR =
 
 const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
 
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function iniciar(raiz, almacen) {
   const estado = cargar(almacen);
   let pestana = "calendario";
@@ -476,10 +599,12 @@ function iniciar(raiz, almacen) {
     const dias = diasDelMes(mesVisible);
     const hueco = (diaSemana(dias[0]) + 6) % 7; // lunes primero
     const celdas = ["<div></div>".repeat(hueco)];
+    const hoy = hoyISO();
     for (const fecha of dias) {
       const g = estado.guardias[fecha];
       const num = Number(fecha.slice(8));
       let clases = "dia";
+      if (fecha === hoy) clases += " hoy";
       let detalle = "";
       if (g) {
         const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
@@ -489,7 +614,7 @@ function iniciar(raiz, almacen) {
         if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
         if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
       }
-      celdas.push(`<div class="${clases}" data-fecha="${fecha}">${num}${detalle}</div>`);
+      celdas.push(`<div class="${clases}" data-fecha="${fecha}"><span class="num">${num}</span>${detalle}</div>`);
     }
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
@@ -497,10 +622,10 @@ function iniciar(raiz, almacen) {
 
     return `
       <div class="tarjeta">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <button data-mes="-1">‹</button>
-          <strong>${MESES[mes - 1]} ${anio}</strong>
-          <button data-mes="1">›</button>
+        <div class="cabecera-mes">
+          <button class="nav-mes" data-mes="-1">‹</button>
+          <strong class="mes-titulo">${MESES[mes - 1]} <span class="mes-anio">${anio}</span></strong>
+          <button class="nav-mes" data-mes="1">›</button>
         </div>
         <div class="rejilla" style="margin:.75rem 0">
           ${["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cabecera-semana">${d}</div>`).join("")}
@@ -508,7 +633,7 @@ function iniciar(raiz, almacen) {
         <div class="rejilla">${celdas.join("")}</div>
       </div>
       <div class="tarjeta">
-        <strong>// ${MESES[mes - 1]} ${anio}</strong>
+        <strong class="etiqueta">// ${MESES[mes - 1]} ${anio}</strong>
         <table>
           <tr><td>sueldo_base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
           ${filaTipo("laborable", r)}${filaTipo("sdf", r)}${filaTipo("especial", r)}
@@ -522,7 +647,7 @@ function iniciar(raiz, almacen) {
           · difieren en ${eur(c.diferencia)}.</p>` : ""}
       </div>
       <div class="tarjeta">
-        <strong>// se ingresa este mes</strong>
+        <strong class="etiqueta">// se ingresa este mes</strong>
         <table>
           <tr><td>nomina base</td><td class="cifra">${eur(p.base)}</td></tr>
           <tr><td>guardias de ${p.guardiasDe}</td><td class="cifra">${eur(p.importeGuardias)}</td></tr>
@@ -535,7 +660,7 @@ function iniciar(raiz, almacen) {
   function filaTipo(tipo, r) {
     if (r.horasPorTipo[tipo] === 0) return "";
     const nombre = { laborable: "Laborable", sdf: "Festiva (S-D-F)", especial: "Festivo especial" }[tipo];
-    return `<tr><td>${nombre} <span style="color:var(--tenue)">(${r.horasPorTipo[tipo]}h)</span></td>
+    return `<tr><td><span class="punto punto-${tipo}"></span>${nombre} <span class="tenue">(${r.horasPorTipo[tipo]}h)</span></td>
       <td class="cifra">${eur(r.importePorTipo[tipo])}</td></tr>`;
   }
 
@@ -545,7 +670,7 @@ function iniciar(raiz, almacen) {
         <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
-    return `<div class="tarjeta"><strong>// festivos</strong><table>${filas}</table>
+    return `<div class="tarjeta"><strong class="etiqueta">// festivos</strong><table>${filas}</table>
       <p class="aviso">Marca como especial los que se retribuyan a ${eur(28.14)}/h.</p></div>`;
   }
 
@@ -553,12 +678,12 @@ function iniciar(raiz, almacen) {
     const t = tiposEfectivos(estado.nominas, estado.config);
     const filas = estado.nominas.map((n, i) => `
       <tr><td>${n.periodo} ${n.clase}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
-      <button data-borrar-nomina="${i}">×</button></td></tr>`).join("");
-    return `<div class="tarjeta"><strong>// nominas registradas</strong>
+      <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
+    return `<div class="tarjeta"><strong class="etiqueta">// nominas registradas</strong>
       <table>${filas}</table>
-      <p>Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
+      <p class="tenue">Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
          Tipo efectivo guardias: ${(t.guardias * 100).toFixed(2)} % (${t.nGuardias} nominas)</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+      <div class="formulario">
         <input id="n-periodo" placeholder="2026-09" size="8">
         <select id="n-clase"><option value="base">base</option><option value="guardias">guardias</option></select>
         <input id="n-bruto" placeholder="bruto" size="8">
@@ -569,7 +694,7 @@ function iniciar(raiz, almacen) {
 
   function vistaAnual() {
     const r = resumenAnio(2026, estado);
-    return `<div class="tarjeta"><strong>// 2026</strong><table>
+    return `<div class="tarjeta"><strong class="etiqueta">// 2026</strong><table>
       <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
       <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
       <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
@@ -588,19 +713,19 @@ function iniciar(raiz, almacen) {
       const tramos = r.tramos.map((t) => `<tr><td>${t.fecha} ${t.desde}–${t.hasta}</td>
         <td class="cifra">${t.horas}h × ${eur(t.tarifa)} = ${eur(t.importe)}</td></tr>`).join("");
       caja.innerHTML = `
-        <strong>${fecha}</strong>
-        <p>Duracion</p>
-        <div>${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
-        <p>Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
-        <p>Lugar</p>
-        <div>${LUGARES.map((l) => `<button data-lugar="${l.sigla}" class="${g.lugar === l.sigla ? "activo" : ""}">${l.nombre}</button>`).join(" ")}
+        <strong class="modal-fecha">${fecha}</strong>
+        <p class="etiqueta-campo">Duracion</p>
+        <div class="chips">${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
+        <p class="etiqueta-campo">Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
+        <p class="etiqueta-campo">Lugar</p>
+        <div class="chips">${LUGARES.map((l) => `<button data-lugar="${l.sigla}" class="${g.lugar === l.sigla ? "activo" : ""}">${l.nombre}</button>`).join(" ")}
              <button data-lugar="" class="${g.lugar === "" ? "activo" : ""}">sin especificar</button></div>
         <p><label><input type="checkbox" id="m-hecha" ${g.hecha ? "checked" : ""}> Guardia ya realizada</label></p>
         <table style="margin-top:.75rem">${tramos}
           <tr><td class="total">bruto</td><td class="cifra total">${eur(r.bruto)}</td></tr></table>
         ${tipos.length > 1 ? `<p class="aviso">${AVISO_SIN_VERIFICAR}</p>` : ""}
-        <div style="display:flex;gap:.5rem;margin-top:1rem">
-          <button id="m-borrar">Borrar</button>
+        <div class="acciones-modal">
+          <button class="peligro" id="m-borrar">Borrar</button>
           <button id="m-cancelar">Cancelar</button>
           <button class="primario" id="m-guardar">Guardar</button>
         </div>`;

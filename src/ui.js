@@ -19,6 +19,11 @@ const AVISO_SIN_VERIFICAR =
 
 const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
 
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function iniciar(raiz, almacen) {
   const estado = cargar(almacen);
   let pestana = "calendario";
@@ -42,10 +47,12 @@ export function iniciar(raiz, almacen) {
     const dias = diasDelMes(mesVisible);
     const hueco = (diaSemana(dias[0]) + 6) % 7; // lunes primero
     const celdas = ["<div></div>".repeat(hueco)];
+    const hoy = hoyISO();
     for (const fecha of dias) {
       const g = estado.guardias[fecha];
       const num = Number(fecha.slice(8));
       let clases = "dia";
+      if (fecha === hoy) clases += " hoy";
       let detalle = "";
       if (g) {
         const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
@@ -55,7 +62,7 @@ export function iniciar(raiz, almacen) {
         if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
         if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
       }
-      celdas.push(`<div class="${clases}" data-fecha="${fecha}">${num}${detalle}</div>`);
+      celdas.push(`<div class="${clases}" data-fecha="${fecha}"><span class="num">${num}</span>${detalle}</div>`);
     }
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
@@ -63,10 +70,10 @@ export function iniciar(raiz, almacen) {
 
     return `
       <div class="tarjeta">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <button data-mes="-1">‹</button>
-          <strong>${MESES[mes - 1]} ${anio}</strong>
-          <button data-mes="1">›</button>
+        <div class="cabecera-mes">
+          <button class="nav-mes" data-mes="-1">‹</button>
+          <strong class="mes-titulo">${MESES[mes - 1]} <span class="mes-anio">${anio}</span></strong>
+          <button class="nav-mes" data-mes="1">›</button>
         </div>
         <div class="rejilla" style="margin:.75rem 0">
           ${["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cabecera-semana">${d}</div>`).join("")}
@@ -74,7 +81,7 @@ export function iniciar(raiz, almacen) {
         <div class="rejilla">${celdas.join("")}</div>
       </div>
       <div class="tarjeta">
-        <strong>// ${MESES[mes - 1]} ${anio}</strong>
+        <strong class="etiqueta">// ${MESES[mes - 1]} ${anio}</strong>
         <table>
           <tr><td>sueldo_base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
           ${filaTipo("laborable", r)}${filaTipo("sdf", r)}${filaTipo("especial", r)}
@@ -88,7 +95,7 @@ export function iniciar(raiz, almacen) {
           · difieren en ${eur(c.diferencia)}.</p>` : ""}
       </div>
       <div class="tarjeta">
-        <strong>// se ingresa este mes</strong>
+        <strong class="etiqueta">// se ingresa este mes</strong>
         <table>
           <tr><td>nomina base</td><td class="cifra">${eur(p.base)}</td></tr>
           <tr><td>guardias de ${p.guardiasDe}</td><td class="cifra">${eur(p.importeGuardias)}</td></tr>
@@ -101,7 +108,7 @@ export function iniciar(raiz, almacen) {
   function filaTipo(tipo, r) {
     if (r.horasPorTipo[tipo] === 0) return "";
     const nombre = { laborable: "Laborable", sdf: "Festiva (S-D-F)", especial: "Festivo especial" }[tipo];
-    return `<tr><td>${nombre} <span style="color:var(--tenue)">(${r.horasPorTipo[tipo]}h)</span></td>
+    return `<tr><td><span class="punto punto-${tipo}"></span>${nombre} <span class="tenue">(${r.horasPorTipo[tipo]}h)</span></td>
       <td class="cifra">${eur(r.importePorTipo[tipo])}</td></tr>`;
   }
 
@@ -111,7 +118,7 @@ export function iniciar(raiz, almacen) {
         <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
-    return `<div class="tarjeta"><strong>// festivos</strong><table>${filas}</table>
+    return `<div class="tarjeta"><strong class="etiqueta">// festivos</strong><table>${filas}</table>
       <p class="aviso">Marca como especial los que se retribuyan a ${eur(28.14)}/h.</p></div>`;
   }
 
@@ -119,12 +126,12 @@ export function iniciar(raiz, almacen) {
     const t = tiposEfectivos(estado.nominas, estado.config);
     const filas = estado.nominas.map((n, i) => `
       <tr><td>${n.periodo} ${n.clase}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
-      <button data-borrar-nomina="${i}">×</button></td></tr>`).join("");
-    return `<div class="tarjeta"><strong>// nominas registradas</strong>
+      <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
+    return `<div class="tarjeta"><strong class="etiqueta">// nominas registradas</strong>
       <table>${filas}</table>
-      <p>Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
+      <p class="tenue">Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
          Tipo efectivo guardias: ${(t.guardias * 100).toFixed(2)} % (${t.nGuardias} nominas)</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+      <div class="formulario">
         <input id="n-periodo" placeholder="2026-09" size="8">
         <select id="n-clase"><option value="base">base</option><option value="guardias">guardias</option></select>
         <input id="n-bruto" placeholder="bruto" size="8">
@@ -135,7 +142,7 @@ export function iniciar(raiz, almacen) {
 
   function vistaAnual() {
     const r = resumenAnio(2026, estado);
-    return `<div class="tarjeta"><strong>// 2026</strong><table>
+    return `<div class="tarjeta"><strong class="etiqueta">// 2026</strong><table>
       <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
       <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
       <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
@@ -154,19 +161,19 @@ export function iniciar(raiz, almacen) {
       const tramos = r.tramos.map((t) => `<tr><td>${t.fecha} ${t.desde}–${t.hasta}</td>
         <td class="cifra">${t.horas}h × ${eur(t.tarifa)} = ${eur(t.importe)}</td></tr>`).join("");
       caja.innerHTML = `
-        <strong>${fecha}</strong>
-        <p>Duracion</p>
-        <div>${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
-        <p>Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
-        <p>Lugar</p>
-        <div>${LUGARES.map((l) => `<button data-lugar="${l.sigla}" class="${g.lugar === l.sigla ? "activo" : ""}">${l.nombre}</button>`).join(" ")}
+        <strong class="modal-fecha">${fecha}</strong>
+        <p class="etiqueta-campo">Duracion</p>
+        <div class="chips">${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
+        <p class="etiqueta-campo">Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
+        <p class="etiqueta-campo">Lugar</p>
+        <div class="chips">${LUGARES.map((l) => `<button data-lugar="${l.sigla}" class="${g.lugar === l.sigla ? "activo" : ""}">${l.nombre}</button>`).join(" ")}
              <button data-lugar="" class="${g.lugar === "" ? "activo" : ""}">sin especificar</button></div>
         <p><label><input type="checkbox" id="m-hecha" ${g.hecha ? "checked" : ""}> Guardia ya realizada</label></p>
         <table style="margin-top:.75rem">${tramos}
           <tr><td class="total">bruto</td><td class="cifra total">${eur(r.bruto)}</td></tr></table>
         ${tipos.length > 1 ? `<p class="aviso">${AVISO_SIN_VERIFICAR}</p>` : ""}
-        <div style="display:flex;gap:.5rem;margin-top:1rem">
-          <button id="m-borrar">Borrar</button>
+        <div class="acciones-modal">
+          <button class="peligro" id="m-borrar">Borrar</button>
           <button id="m-cancelar">Cancelar</button>
           <button class="primario" id="m-guardar">Guardar</button>
         </div>`;
