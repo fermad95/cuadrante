@@ -2,7 +2,7 @@
 import { diasDelMes, diaSemana, redondear } from "./fechas.js";
 import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
-import { cargar, guardar, estadoInicial } from "./estado.js";
+import { cargar, guardar, estadoInicial, importarEstado } from "./estado.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
 import { calendarioDe } from "./festivos.js";
 
@@ -152,6 +152,8 @@ export function iniciar(raiz, almacen) {
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
     const c = compararHipotesis(mesVisible, estado);
+    const sinMarcar = Object.entries(estado.guardias)
+      .filter(([f, g]) => f.slice(0, 7) === mesVisible && !g.hecha).length;
 
     return `
       <div class="tarjeta">
@@ -179,6 +181,10 @@ export function iniciar(raiz, almacen) {
           <tr><td>Neto de las guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
           <tr><td class="total">Total neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
         </table>
+        ${sinMarcar > 0 ? `<div class="chips" style="margin-top:.9rem">
+          <button id="marcar-mes">Marcar ${sinMarcar === 1
+            ? "la guardia pendiente" : `las ${sinMarcar} guardias pendientes`} como realizada${sinMarcar === 1 ? "" : "s"}</button>
+        </div>` : ""}
         ${c.difieren ? `<p class="aviso">${AVISO_SIN_VERIFICAR}<br>
           Con corte: ${eur(c.conCorte.brutoGuardias)} · sin corte: ${eur(c.sinCorte.brutoGuardias)}
           · difieren en ${eur(c.diferencia)}.</p>` : ""}
@@ -455,11 +461,18 @@ export function iniciar(raiz, almacen) {
           () => { b.textContent = "Copialo a mano"; });
       }
       else if (b.id === "a-importar") {
-        if (importar(caja.querySelector("#a-datos").value)) {
-          persistir(); cerrarModal(); pintar();
+        const r = importarEstado(caja.querySelector("#a-datos").value);
+        if (!r.ok) {
+          caja.querySelector("#a-error").textContent = r.error;
         } else {
-          caja.querySelector("#a-error").textContent =
-            "Ese texto no es una copia válida del cuadrante.";
+          // El tema no viene en la copia: se conserva el de este dispositivo.
+          const tema = estado.config.tema;
+          Object.assign(estado, r.estado);
+          estado.config.tema = tema;
+          persistir(); cerrarModal(); pintar();
+          if (r.descartadas > 0) {
+            avisarDescartes(r.descartadas);
+          }
         }
       }
       else if (b.id === "a-borrar-todo") {
@@ -505,25 +518,19 @@ export function iniciar(raiz, almacen) {
       : null;
   }
 
-  function importar(texto) {
-    let dato;
-    try {
-      dato = JSON.parse(texto);
-    } catch {
-      return false;
-    }
-    if (!dato || typeof dato !== "object" || !dato.config || !dato.guardias) return false;
-    const limpio = estadoInicial();
-    Object.assign(estado, {
-      ...limpio,
-      ...dato,
-      config: { ...limpio.config, ...dato.config },
-    });
-    return true;
+  // Se avisa en la propia vista, no con alert(): un dialogo del navegador
+  // bloquea la pagina y desde el artifact no hay forma de recuperarla.
+  function avisarDescartes(cuantas) {
+    const vista = raiz.querySelector("#vista");
+    const nota = document.createElement("p");
+    nota.className = "aviso";
+    nota.textContent = `Se importó la copia, pero ${cuantas} `
+      + `${cuantas === 1 ? "entrada no era válida y se descartó" : "entradas no eran válidas y se descartaron"}.`;
+    vista.prepend(nota);
   }
 
   raiz.addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir");
+    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir, #marcar-mes");
     if (!b) return;
     if (b.id === "abrir-ajustes") abrirAjustes();
     else if (b.id === "b-empezar") {
@@ -553,6 +560,12 @@ export function iniciar(raiz, almacen) {
       if (derivado && derivado.clase === nueva) delete estado.festivos[fecha];
       else if (derivado) estado.festivos[fecha] = { clase: nueva };
       else estado.festivos[fecha] = { nombre: actual.nombre, clase: nueva };
+      persistir(); pintar();
+    }
+    else if (b.id === "marcar-mes") {
+      for (const [fecha, g] of Object.entries(estado.guardias)) {
+        if (fecha.slice(0, 7) === mesVisible) g.hecha = true;
+      }
       persistir(); pintar();
     }
     else if (b.id === "f-anadir") {

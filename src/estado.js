@@ -44,6 +44,76 @@ export function migrarV5(v5) {
   };
 }
 
+const ES_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const ES_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const ES_PERIODO = /^\d{4}-\d{2}$/;
+
+function guardiaValida(fecha, g) {
+  return ES_FECHA.test(fecha) && g && typeof g === "object"
+    && typeof g.horas === "number" && g.horas > 0 && g.horas <= 48
+    && (g.inicio === undefined || ES_HORA.test(g.inicio));
+}
+
+function nominaValida(n) {
+  return n && typeof n === "object"
+    && ES_PERIODO.test(n.periodo)
+    && (n.clase === "base" || n.clase === "guardias")
+    && typeof n.bruto === "number" && n.bruto > 0
+    && typeof n.neto === "number" && n.neto > 0 && n.neto <= n.bruto;
+}
+
+// Importa una copia de seguridad pegada a mano. Descarta lo que no sea valido en
+// vez de rechazar el lote entero: una copia casi buena sigue sirviendo, y se
+// informa de cuantas entradas se han caido. El tema no se importa a proposito:
+// es una preferencia de cada dispositivo, no un dato del usuario.
+export function importarEstado(texto) {
+  let dato;
+  try {
+    dato = JSON.parse(texto);
+  } catch {
+    return { ok: false, error: "Eso no es un JSON valido." };
+  }
+  if (!dato || typeof dato !== "object" || Array.isArray(dato)) {
+    return { ok: false, error: "Eso no es una copia del cuadrante." };
+  }
+  if (!dato.config || typeof dato.config !== "object"
+      || !dato.guardias || typeof dato.guardias !== "object" || Array.isArray(dato.guardias)) {
+    return { ok: false, error: "A esa copia le faltan datos del cuadrante." };
+  }
+
+  const base = Number(dato.version) >= 6 ? dato : migrarV5(dato);
+  const inicial = estadoInicial();
+  let descartadas = 0;
+
+  const guardias = {};
+  for (const [fecha, g] of Object.entries(base.guardias || {})) {
+    if (guardiaValida(fecha, g)) guardias[fecha] = g;
+    else descartadas += 1;
+  }
+
+  const nominas = [];
+  for (const n of Array.isArray(base.nominas) ? base.nominas : []) {
+    if (nominaValida(n)) nominas.push(n);
+    else descartadas += 1;
+  }
+
+  const config = { ...inicial.config, ...(base.config || {}) };
+  delete config.tema;
+
+  return {
+    ok: true,
+    descartadas,
+    estado: {
+      ...inicial,
+      config,
+      guardias,
+      nominas,
+      festivos: base.festivos && typeof base.festivos === "object" ? base.festivos : {},
+      version: 6,
+    },
+  };
+}
+
 function leerJSON(almacen, clave) {
   try {
     const crudo = almacen.getItem(clave);
