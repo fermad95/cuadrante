@@ -12,32 +12,25 @@ function almacenFalso(contenido = {}) {
   };
 }
 
-test("el estado inicial trae las guardias de junio y agosto", () => {
+test("el estado inicial no lleva ningun dato personal", () => {
   const e = estadoInicial();
-  assert.equal(Object.keys(e.guardias).length, 9);
-  assert.equal(e.guardias["2026-06-20"].horas, 12);
-  assert.equal(e.guardias["2026-08-05"].lugar, "OBS");
-  assert.equal(e.guardias["2026-06-08"].hecha, true);
-});
-
-test("el estado inicial trae las dos nominas conocidas", () => {
-  const e = estadoInicial();
-  assert.equal(e.nominas.length, 2);
-  const junio = e.nominas.find((n) => n.clase === "guardias");
-  assert.equal(junio.bruto, 484.83);
-  assert.equal(junio.neto, 469.02);
+  assert.deepEqual(e.guardias, {});
+  assert.deepEqual(e.festivos, {});
+  assert.deepEqual(e.nominas, []);
+  assert.equal(e.config.inicioResidencia, null);
 });
 
 test("el estado inicial arranca con el corte a medianoche activado", () => {
   const e = estadoInicial();
+  assert.equal(e.version, 6);
   assert.equal(e.config.cortarAMedianoche, true);
   assert.equal(e.config.especialCortaAMedianoche, true);
-  assert.equal(e.config.inicioResidencia, "2026-05-27");
+  assert.equal(e.config.retribuciones, null);
+  assert.equal(e.config.retencionBase, 0.089753);
 });
 
 test("cargar sin nada guardado devuelve el estado inicial", () => {
-  const e = cargar(almacenFalso());
-  assert.equal(Object.keys(e.guardias).length, 9);
+  assert.deepEqual(cargar(almacenFalso()).guardias, {});
 });
 
 test("cargar recupera lo guardado", () => {
@@ -49,14 +42,15 @@ test("cargar recupera lo guardado", () => {
 });
 
 test("cargar rellena las claves de configuracion que falten", () => {
-  const guardado = JSON.stringify({ version: 5, config: { inicioResidencia: "2025-05-27" }, guardias: {}, festivos: {}, nominas: [] });
+  const guardado = JSON.stringify({
+    version: 6, config: { inicioResidencia: "2025-05-27" },
+    guardias: {}, festivos: {}, nominas: [],
+  });
   const e = cargar(almacenFalso({ [CLAVE]: guardado }));
   assert.equal(e.config.inicioResidencia, "2025-05-27");
   assert.equal(e.config.cortarAMedianoche, true);
-  assert.deepEqual(e.guardias, {});
 });
 
 test("un JSON corrupto no rompe la carga", () => {
-  const e = cargar(almacenFalso({ [CLAVE]: "{roto" }));
-  assert.equal(Object.keys(e.guardias).length, 9);
+  assert.deepEqual(cargar(almacenFalso({ [CLAVE]: "{roto" })).guardias, {});
 });
