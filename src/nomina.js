@@ -3,16 +3,22 @@ import { redondear, mesDe } from "./fechas.js";
 import { calcularGuardia } from "./motor.js";
 import { retribucionFija, anioResidenciaEn } from "./tarifas.js";
 
-function tipoMedio(nominas, clase) {
+// La mas reciente, no la media: el IRPF se recalcula cada anio y sube con el anio
+// de residencia, asi que promediar una nomina de R1 con una de R3 da un tipo que no
+// describe a ninguna de las dos.
+function tipoReciente(nominas, clase) {
   const suyas = nominas.filter((n) => n.clase === clase && n.bruto > 0);
   if (suyas.length === 0) return null;
-  const suma = suyas.reduce((acc, n) => acc + (n.bruto - n.neto) / n.bruto, 0);
-  return Math.round((suma / suyas.length) * 1e6) / 1e6;
+  let mejor = suyas[0];
+  for (const n of suyas) {
+    if (n.periodo >= mejor.periodo) mejor = n; // >= : la ultima anadida gana el empate
+  }
+  return Math.round(((mejor.bruto - mejor.neto) / mejor.bruto) * 1e6) / 1e6;
 }
 
 export function tiposEfectivos(nominas, config) {
-  const base = tipoMedio(nominas, "base");
-  const guardias = tipoMedio(nominas, "guardias");
+  const base = tipoReciente(nominas, "base");
+  const guardias = tipoReciente(nominas, "guardias");
   return {
     base: base === null ? config.retencionBase : base,
     guardias: guardias === null ? config.retencionGuardias : guardias,
