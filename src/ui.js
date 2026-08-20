@@ -1,7 +1,7 @@
 // src/ui.js
 import { diasDelMes, diaSemana, redondear } from "./fechas.js";
 import { sugerenciaPara, calcularGuardia } from "./motor.js";
-import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos } from "./nomina.js";
+import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
 import { cargar, guardar, estadoInicial } from "./estado.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
 import { calendarioDe } from "./festivos.js";
@@ -180,10 +180,8 @@ export function iniciar(raiz, almacen) {
       <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
     return `<div class="tarjeta"><strong class="etiqueta">Nóminas registradas</strong>
       <table>${filas}</table>
-      <p class="tenue">Retención efectiva de la base: ${(t.base * 100).toFixed(2)} %
-         (${t.nBase} ${t.nBase === 1 ? "nómina" : "nóminas"})<br>
-         Retención efectiva de las guardias: ${(t.guardias * 100).toFixed(2)} %
-         (${t.nGuardias} ${t.nGuardias === 1 ? "nómina" : "nóminas"})</p>
+      ${bloqueRetencion("base", "Base", t.base, t.nBase)}
+      ${bloqueRetencion("guardias", "Guardias", t.guardias, t.nGuardias)}
       <div class="formulario">
         <input id="n-periodo" placeholder="2026-09" size="8">
         <select id="n-clase"><option value="base">Base</option><option value="guardias">Guardias</option></select>
@@ -192,6 +190,36 @@ export function iniciar(raiz, almacen) {
         <button class="primario" id="n-anadir">Añadir</button>
       </div>
       <p class="aviso" id="n-error"></p></div>`;
+  }
+
+  // El tipo de IRPF se regulariza y puede moverse mes a mes. Se enseña la deriva
+  // en vez de un solo numero, y se marcan los saltos grandes.
+  function bloqueRetencion(clase, titulo, tipoVigente, cuantas) {
+    const h = historialTipos(estado.nominas, clase);
+    if (h.length === 0) {
+      return `<p class="tenue">Retención de ${titulo.toLowerCase()}:
+        <strong>${(tipoVigente * 100).toFixed(2)} %</strong> — valor por defecto,
+        aún sin nóminas registradas.</p>`;
+    }
+    const pasos = h.map((f, i) => {
+      const pct = `${(f.tipo * 100).toFixed(2)} %`;
+      const ultimo = i === h.length - 1;
+      const marca = f.esSalto
+        ? `<span class="salto">${f.salto > 0 ? "▲" : "▼"} ${Math.abs(f.salto * 100).toFixed(2)}</span>`
+        : "";
+      return `<span class="paso${ultimo ? " vigente" : ""}">${esc(f.periodo)}
+        <b>${pct}</b>${marca}</span>`;
+    }).join('<span class="flecha">→</span>');
+    const saltos = h.filter((f) => f.esSalto);
+    return `
+      <p class="etiqueta-campo">Retención de ${titulo.toLowerCase()}</p>
+      <div class="historial">${pasos}</div>
+      ${saltos.length ? `<p class="aviso">El tipo cambió de golpe en
+        ${saltos.map((s) => esc(s.periodo)).join(", ")}. Suele ser una regularización
+        de Hacienda: las previsiones de los meses anteriores se quedaron
+        ${saltos[saltos.length - 1].salto > 0 ? "largas" : "cortas"}.</p>`
+        : `<p class="aviso">Estable en ${cuantas} ${cuantas === 1 ? "nómina" : "nóminas"}.
+        Se usa el último valor para las previsiones.</p>`}`;
   }
 
   function vistaAnual() {

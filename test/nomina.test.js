@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tiposEfectivos, aplicarRetencion } from "../src/nomina.js";
+import { tiposEfectivos, aplicarRetencion, historialTipos } from "../src/nomina.js";
 
 const CONFIG = { retencionBase: 0.089753, retencionGuardias: 0.032609 };
 
@@ -87,4 +87,52 @@ test("aplicarRetencion reproduce la complementaria de junio al centimo", () => {
 
 test("un bruto de cero no da NaN", () => {
   assert.deepEqual(aplicarRetencion(0, 0.032609), { descuento: 0, neto: 0 });
+});
+
+test("el historial ordena por periodo y calcula el tipo de cada nomina", () => {
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 91 },
+    { periodo: "2026-06", clase: "base", bruto: 100, neto: 90 },
+    { periodo: "2026-06", clase: "guardias", bruto: 100, neto: 97 },
+  ], "base");
+  assert.deepEqual(h.map((x) => x.periodo), ["2026-06", "2026-07"]);
+  assert.equal(h[0].tipo, 0.1);
+  assert.equal(h[1].tipo, 0.09);
+});
+
+test("la primera nomina no tiene salto", () => {
+  const h = historialTipos([{ periodo: "2026-06", clase: "base", bruto: 100, neto: 90 }], "base");
+  assert.equal(h[0].salto, null);
+  assert.equal(h[0].esSalto, false);
+});
+
+test("una variacion pequena no se marca como salto", () => {
+  const h = historialTipos([
+    { periodo: "2026-06", clase: "base", bruto: 100, neto: 90 },
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 89.5 },
+  ], "base");
+  assert.equal(h[1].esSalto, false);
+  assert.equal(h[1].salto, 0.005);
+});
+
+test("una regularizacion se marca como salto", () => {
+  const h = historialTipos([
+    { periodo: "2026-06", clase: "base", bruto: 100, neto: 90 },
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 84 },
+  ], "base");
+  assert.equal(h[1].esSalto, true);
+  assert.equal(h[1].salto, 0.06);
+});
+
+test("un salto a la baja tambien se marca", () => {
+  const h = historialTipos([
+    { periodo: "2026-06", clase: "base", bruto: 100, neto: 84 },
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90 },
+  ], "base");
+  assert.equal(h[1].esSalto, true);
+  assert.equal(h[1].salto, -0.06);
+});
+
+test("sin nominas de esa clase el historial esta vacio", () => {
+  assert.deepEqual(historialTipos([{ periodo: "2026-06", clase: "guardias", bruto: 100, neto: 97 }], "base"), []);
 });
