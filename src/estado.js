@@ -1,5 +1,3 @@
-import { festivosIniciales } from "./festivos.js";
-
 export const CLAVE = "cuadrante_v5";
 
 export function estadoInicial() {
@@ -23,7 +21,7 @@ export function estadoInicial() {
       "2026-08-11": { horas: 17, inicio: "15:00", lugar: "", hecha: true },
       "2026-08-13": { horas: 17, inicio: "15:00", lugar: "", hecha: true },
     },
-    festivos: festivosIniciales(),
+    festivos: {},
     nominas: [
       { periodo: "2026-07", clase: "base", bruto: 1379.90, neto: 1256.05 },
       { periodo: "2026-06", clase: "guardias", bruto: 484.83, neto: 469.02 },

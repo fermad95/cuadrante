@@ -9,6 +9,8 @@ export function inicioSugerido(horas) {
   return INICIO_POR_DURACION[horas] || "15:00";
 }
 
+// `festivos` es el mapa de excepciones del usuario, no un calendario completo:
+// el calendario base lo deriva festivos.js a partir del anio de cada fecha.
 export function partirGuardia(guardia, festivos, opciones = {}) {
   const cortar = opciones.cortarAMedianoche !== false;
   const cortarEspecial = opciones.especialCortaAMedianoche !== false;

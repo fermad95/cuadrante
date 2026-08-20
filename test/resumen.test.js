@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resumenMes, mesAnterior, previsionIngreso, resumenAnio } from "../src/nomina.js";
-import { festivosIniciales } from "../src/festivos.js";
 
 const ESTADO = {
   config: {
@@ -9,7 +8,7 @@ const ESTADO = {
     retencionBase: 0.089753,
     retencionGuardias: 0.032609,
   },
-  festivos: festivosIniciales(),
+  festivos: {},
   nominas: [],
   guardias: {
     "2026-06-08": { horas: 7, inicio: "15:00", hecha: true },

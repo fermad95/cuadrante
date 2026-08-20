@@ -1,7 +1,7 @@
 // test/calendario.test.js
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { festivosDerivados } from "../src/festivos.js";
+import { festivosDerivados, clasificarDia, calendarioDe } from "../src/festivos.js";
 
 test("2026 deriva los mismos festivos nacionales y andaluces que estaban a mano", () => {
   const c = festivosDerivados(2026);
@@ -50,4 +50,52 @@ test("cada festivo lleva ambito y arranca como sdf", () => {
   assert.equal(c["2026-02-28"].ambito, "autonomico");
   assert.equal(c["2026-04-02"].ambito, "autonomico");
   assert.equal(c["2026-01-01"].clase, "sdf");
+});
+
+test("sin excepciones manda el derivado y luego el dia de la semana", () => {
+  assert.equal(clasificarDia("2026-08-05", {}), "laborable"); // miercoles
+  assert.equal(clasificarDia("2026-08-02", {}), "sdf");       // domingo
+  assert.equal(clasificarDia("2026-06-20", {}), "sdf");       // sabado
+  assert.equal(clasificarDia("2026-01-01", {}), "sdf");       // festivo derivado
+  assert.equal(clasificarDia("2027-01-01", {}), "sdf");       // y en 2027 tambien
+});
+
+test("una excepcion especial gana al derivado y al dia de la semana", () => {
+  assert.equal(clasificarDia("2026-01-01", { "2026-01-01": { clase: "especial" } }), "especial");
+  assert.equal(clasificarDia("2026-12-24", { "2026-12-24": { clase: "especial" } }), "especial");
+});
+
+test("una excepcion laborable desmarca un festivo derivado", () => {
+  assert.equal(clasificarDia("2026-01-01", { "2026-01-01": { clase: "laborable" } }), "laborable");
+});
+
+test("una excepcion laborable no convierte un domingo en laborable", () => {
+  assert.equal(clasificarDia("2026-08-02", { "2026-08-02": { clase: "laborable" } }), "sdf");
+});
+
+test("un festivo local dado de alta clasifica como festivo", () => {
+  const exc = { "2026-09-08": { nombre: "Fuensanta", clase: "sdf" } };
+  assert.equal(clasificarDia("2026-09-08", exc), "sdf"); // martes
+});
+
+test("calendarioDe mezcla derivados, altas y reclasificaciones", () => {
+  const c = calendarioDe(2026, {
+    "2026-01-01": { clase: "especial" },
+    "2026-09-08": { nombre: "Fuensanta", clase: "sdf" },
+  });
+  assert.equal(c["2026-01-01"].clase, "especial");
+  assert.equal(c["2026-01-01"].nombre, "Ano Nuevo");
+  assert.equal(c["2026-09-08"].nombre, "Fuensanta");
+  assert.equal(c["2026-09-08"].ambito, "local");
+  assert.equal(c["2026-12-25"].clase, "sdf");
+});
+
+test("calendarioDe ignora las excepciones de otros anios", () => {
+  const c = calendarioDe(2026, { "2027-06-01": { nombre: "X", clase: "sdf" } });
+  assert.equal(c["2027-06-01"], undefined);
+});
+
+test("calendarioDe no contamina el calendario base entre llamadas", () => {
+  calendarioDe(2026, { "2026-12-25": { clase: "especial" } });
+  assert.equal(calendarioDe(2026, {})["2026-12-25"].clase, "sdf");
 });
