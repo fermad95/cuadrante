@@ -57,7 +57,7 @@ export function calcularGuardia(guardia, festivos, config) {
   const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
 
   const detallados = tramos.map((t) => {
-    const tarifa = tarifaEn(t.fecha, config.inicioResidencia)[t.tipo];
+    const tarifa = tarifaEn(t.fecha, config)[t.tipo];
     const importe = redondear(t.horas * tarifa);
     horasPorTipo[t.tipo] += t.horas;
     importePorTipo[t.tipo] = redondear(importePorTipo[t.tipo] + importe);
