@@ -765,6 +765,7 @@ function historialTipos(nominas, clase) {
 
     const fila = {
       periodo: n.periodo,
+      bruto: n.bruto,
       tipo,
       tipoCotizacion,
       tipoIrpf,
@@ -1177,6 +1178,12 @@ function iniciar(raiz, almacen) {
     const sinMarcar = Object.entries(estado.guardias)
       .filter(([f, g]) => f.slice(0, 7) === mesVisible && !g.hecha).length;
 
+    // El tipo de las guardias se calibra con una nomina concreta, y parte de la
+    // cotizacion esta topada: en un mes con bastantes mas guardias que aquella,
+    // el descuento real es proporcionalmente menor y el neto sale corto.
+    const refGuardias = historialTipos(estado.nominas, "guardias").slice(-1)[0];
+    const netoCorto = refGuardias && r.brutoGuardias > refGuardias.bruto * 1.25;
+
     return `
       <div class="tarjeta">
         <div class="cabecera-mes">
@@ -1203,6 +1210,11 @@ function iniciar(raiz, almacen) {
           <tr><td>Neto de las guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
           <tr><td class="total">Total neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
         </table>
+        ${netoCorto ? `<p class="aviso">El neto de las guardias se calcula con el tipo
+          de tu nómina de ${esc(refGuardias.periodo)}, que liquidaba
+          ${eur(refGuardias.bruto)}. Este mes son ${eur(r.brutoGuardias)}, y como parte
+          de la cotización está topada, lo más probable es que cobres <strong>algo
+          más</strong> de lo que pone aquí.</p>` : ""}
         ${sinMarcar > 0 ? `<div class="chips" style="margin-top:.9rem">
           <button id="marcar-mes">Marcar ${sinMarcar === 1
             ? "la guardia pendiente" : `las ${sinMarcar} guardias pendientes`} como realizada${sinMarcar === 1 ? "" : "s"}</button>
