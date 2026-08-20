@@ -19,6 +19,9 @@ const AVISO_SIN_VERIFICAR =
 
 const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
 
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 function hoyISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -46,7 +49,7 @@ export function iniciar(raiz, almacen) {
     const [anio, mes] = mesVisible.split("-").map(Number);
     const dias = diasDelMes(mesVisible);
     const hueco = (diaSemana(dias[0]) + 6) % 7; // lunes primero
-    const celdas = ["<div></div>".repeat(hueco)];
+    const celdas = ['<div aria-hidden="true"></div>'.repeat(hueco)];
     const hoy = hoyISO();
     for (const fecha of dias) {
       const g = estado.guardias[fecha];
@@ -62,7 +65,7 @@ export function iniciar(raiz, almacen) {
         if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
         if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
       }
-      celdas.push(`<div class="${clases}" data-fecha="${fecha}"><span class="num">${num}</span>${detalle}</div>`);
+      celdas.push(`<button type="button" class="${clases}" data-fecha="${fecha}" aria-label="${fecha}"><span class="num">${num}</span>${detalle}</button>`);
     }
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
@@ -114,7 +117,7 @@ export function iniciar(raiz, almacen) {
 
   function vistaFestivos() {
     const filas = Object.entries(estado.festivos).sort().map(([fecha, f]) => `
-      <tr><td>${fecha} ${f.nombre}</td><td class="cifra">
+      <tr><td>${fecha} ${esc(f.nombre)}</td><td class="cifra">
         <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
@@ -125,7 +128,7 @@ export function iniciar(raiz, almacen) {
   function vistaNominas() {
     const t = tiposEfectivos(estado.nominas, estado.config);
     const filas = estado.nominas.map((n, i) => `
-      <tr><td>${n.periodo} ${n.clase}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
+      <tr><td>${esc(n.periodo)} ${esc(n.clase)}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
       <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
     return `<div class="tarjeta"><strong class="etiqueta">// nominas registradas</strong>
       <table>${filas}</table>
@@ -248,6 +251,10 @@ export function iniciar(raiz, almacen) {
 
   raiz.querySelector("#modal").addEventListener("click", (ev) => {
     if (ev.target.id === "modal") cerrarModal();
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") cerrarModal();
   });
 
   pintar();

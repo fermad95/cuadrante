@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const raiz = dirname(fileURLToPath(import.meta.url));
-const ORDEN = ["fechas.js", "tarifas.js", "festivos.js", "motor.js", "nomina.js", "estado.js", "ui.js"];
+const ORDEN = ["fechas.js", "pascua.js", "tarifas.js", "festivos.js", "motor.js", "nomina.js", "estado.js", "ui.js"];
 
 function leer(nombre) {
   return readFileSync(join(raiz, "src", nombre), "utf8");

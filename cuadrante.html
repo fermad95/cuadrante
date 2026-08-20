@@ -45,11 +45,19 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 /* Cabecera / marca */
-.cabecera { padding: .25rem 0 1.1rem; }
-.marca {
+.cabecera {
+  padding: .25rem 0 1.1rem; display: flex;
+  justify-content: space-between; align-items: flex-start; gap: 1rem;
+}
+h1.marca {
   margin: 0; font-family: var(--serif); font-weight: 600;
   font-size: 1.9rem; letter-spacing: -.01em; text-wrap: balance;
 }
+.engranaje {
+  width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%;
+  font-size: 1rem; line-height: 1; color: var(--tenue); flex-shrink: 0;
+}
+.engranaje:hover { color: var(--texto); border-color: var(--tenue); }
 .submarca {
   margin: .15rem 0 0; color: var(--tenue); font-size: 12.5px;
   font-family: var(--mono); letter-spacing: .02em;
@@ -112,15 +120,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .dia:hover { border-color: var(--tenue); }
 .dia .num { font-size: 13px; font-variant-numeric: tabular-nums; }
-.dia.hoy { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; }
-.dia.hoy .num { color: var(--acento); font-weight: 600; }
 .dia .horas { font-size: 10px; color: var(--tenue); font-family: var(--mono); }
-.dia.laborable { border-color: color-mix(in srgb, var(--laborable) 55%, var(--borde)); background: color-mix(in srgb, var(--laborable) 10%, #0e1319); }
-.dia.sdf { border-color: color-mix(in srgb, var(--sdf) 55%, var(--borde)); background: color-mix(in srgb, var(--sdf) 10%, #0e1319); }
-.dia.especial { border-color: color-mix(in srgb, var(--especial) 55%, var(--borde)); background: color-mix(in srgb, var(--especial) 12%, #0e1319); }
+/* La declaracion plana va antes del color-mix como reserva: un navegador sin
+   soporte descarta la segunda y conserva el color, en vez de perderlo entero. */
+.dia.laborable { border-color: var(--laborable); border-color: color-mix(in srgb, var(--laborable) 55%, var(--borde)); background: #101a1d; background: color-mix(in srgb, var(--laborable) 10%, #0e1319); }
+.dia.sdf { border-color: var(--sdf); border-color: color-mix(in srgb, var(--sdf) 55%, var(--borde)); background: #1a1712; background: color-mix(in srgb, var(--sdf) 10%, #0e1319); }
+.dia.especial { border-color: var(--especial); border-color: color-mix(in srgb, var(--especial) 55%, var(--borde)); background: #1a1216; background: color-mix(in srgb, var(--especial) 12%, #0e1319); }
 .dia.laborable .num { color: var(--laborable); }
 .dia.sdf .num { color: var(--sdf); }
 .dia.especial .num { color: var(--especial); }
+/* .hoy va DESPUES de las clases de tipo: misma especificidad, gana la ultima.
+   Antes iba delante y el marcador desaparecia en los dias con guardia. */
+.dia.hoy { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; }
+.dia.hoy .num { color: var(--acento); font-weight: 600; }
+.dia.prevista { border-style: dashed; }
 .dia .lugar { font-size: 9px; color: var(--tenue); font-family: var(--mono); letter-spacing: .02em; }
 .dia .cruza { font-size: 8.5px; color: var(--tenue); text-transform: uppercase; letter-spacing: .04em; }
 
@@ -179,14 +192,25 @@ button, input, select {
   border-radius: 9px; padding: .5rem .75rem; font: inherit; font-size: 14px;
 }
 button { cursor: pointer; }
-button.activo { border-color: var(--acento); color: var(--acento); background: color-mix(in srgb, var(--acento) 14%, #0e1319); }
+button.activo { border-color: var(--acento); color: var(--acento); background: #16151f; background: color-mix(in srgb, var(--acento) 14%, #0e1319); }
+/* Neutraliza el reset de controles para las celdas del calendario, que pasaron
+   de div a button por accesibilidad. Va despues del bloque button/input/select. */
+.dia { font: inherit; color: inherit; }
+textarea {
+  width: 100%; background: #0e1319; color: var(--texto); border: 1px solid var(--borde);
+  border-radius: 9px; padding: .5rem .75rem; font-family: var(--mono); font-size: 12px;
+  resize: vertical;
+}
 button.primario { background: var(--acento); color: #0a0d11; border-color: var(--acento); font-weight: 600; }
 button.peligro { color: var(--peligro); border-color: color-mix(in srgb, var(--peligro) 45%, var(--borde)); }
 button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, #0e1319); }
 </style>
 <header class="cabecera">
-  <p class="marca">Cuadrante</p>
-  <p class="submarca">MIR · SAS R. 0002/2026</p>
+  <div>
+    <h1 class="marca">Cuadrante</h1>
+    <p class="submarca">Guardias MIR · SAS anexo XVI</p>
+  </div>
+  <button id="abrir-ajustes" class="engranaje" aria-label="Ajustes">⚙</button>
 </header>
 <nav class="pestanas" id="pestanas"></nav>
 <div id="vista"></div>
@@ -206,10 +230,14 @@ function diaSemana(fechaISO) {
   return new Date(a, m - 1, d).getDay();
 }
 
-function diaSiguiente(fechaISO) {
+function desplazar(fechaISO, dias) {
   const { a, m, d } = partes(fechaISO);
-  const siguiente = new Date(a, m - 1, d + 1);
-  return texto(siguiente.getFullYear(), siguiente.getMonth() + 1, siguiente.getDate());
+  const x = new Date(a, m - 1, d + dias);
+  return texto(x.getFullYear(), x.getMonth() + 1, x.getDate());
+}
+
+function diaSiguiente(fechaISO) {
+  return desplazar(fechaISO, 1);
 }
 
 function aMinutos(hora) {
@@ -242,23 +270,49 @@ function redondear(n) {
   return Math.round(n * 100) / 100;
 }
 
+// src/pascua.js
+
+// Algoritmo anonimo gregoriano.
+function domingoDePascua(anio) {
+  const a = anio % 19;
+  const b = Math.floor(anio / 100);
+  const c = anio % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
 // src/tarifas.js
 
-const TARIFAS = {
-  1: { laborable: 14.07, sdf: 15.78, especial: 28.14 },
-  2: { laborable: 15.42, sdf: 17.28, especial: 30.84 },
-  3: { laborable: 18.02, sdf: 20.17, especial: 36.04 },
-  4: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
-  5: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
+const RETRIBUCIONES_ANEXO = {
+  guardias: {
+    1: { laborable: 14.07, sdf: 15.78, especial: 28.14 },
+    2: { laborable: 15.42, sdf: 17.28, especial: 30.84 },
+    3: { laborable: 18.02, sdf: 20.17, especial: 36.04 },
+    4: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
+    5: { laborable: 20.22, sdf: 22.61, especial: 40.44 },
+  },
+  sueldoBase: 1379.90,
+  cgFormacion: { 1: 0, 2: 110.38, 3: 248.41, 4: 386.37, 5: 524.38 },
 };
-
-const SUELDO_BASE = 1379.90;
-
-const CG_FORMACION = { 1: 0, 2: 110.38, 3: 248.41, 4: 386.37, 5: 524.38 };
 
 const PAGAS = 14;
 
+function retribucionesDe(config) {
+  return (config && config.retribuciones) || RETRIBUCIONES_ANEXO;
+}
+
 function anioResidenciaEn(fechaISO, inicioResidencia) {
+  if (!inicioResidencia) return 1;
   const [ai, mi, di] = inicioResidencia.split("-").map(Number);
   const [af, mf, df] = fechaISO.split("-").map(Number);
   let anios = af - ai;
@@ -266,59 +320,77 @@ function anioResidenciaEn(fechaISO, inicioResidencia) {
   return Math.min(5, Math.max(1, anios + 1));
 }
 
-function tarifaEn(fechaISO, inicioResidencia) {
-  return TARIFAS[anioResidenciaEn(fechaISO, inicioResidencia)];
+function tarifaEn(fechaISO, config) {
+  const anio = anioResidenciaEn(fechaISO, config.inicioResidencia);
+  return retribucionesDe(config).guardias[anio];
 }
 
-function retribucionFija(anioResidencia) {
-  const sueldo = SUELDO_BASE;
-  const cg = CG_FORMACION[anioResidencia];
+function retribucionFija(anioResidencia, config) {
+  const r = retribucionesDe(config);
+  const sueldo = r.sueldoBase;
+  const cg = r.cgFormacion[anioResidencia];
   const mensual = redondear(sueldo + cg);
   return { sueldo, cg, mensual, anual: redondear(mensual * PAGAS) };
 }
 
 // src/festivos.js
 
-const FESTIVOS_2026 = [
-  { fecha: "2026-01-01", nombre: "Ano Nuevo", ambito: "nacional" },
-  { fecha: "2026-01-06", nombre: "Reyes", ambito: "nacional" },
-  { fecha: "2026-02-28", nombre: "Dia de Andalucia", ambito: "autonomico" },
-  { fecha: "2026-04-02", nombre: "Jueves Santo", ambito: "nacional" },
-  { fecha: "2026-04-03", nombre: "Viernes Santo", ambito: "nacional" },
-  { fecha: "2026-05-01", nombre: "Fiesta del Trabajo", ambito: "nacional" },
-  { fecha: "2026-08-15", nombre: "Asuncion", ambito: "nacional" },
-  { fecha: "2026-09-08", nombre: "Ntra. Sra. de la Fuensanta", ambito: "local" },
-  { fecha: "2026-10-12", nombre: "Fiesta Nacional", ambito: "nacional" },
-  { fecha: "2026-10-24", nombre: "San Rafael", ambito: "local" },
-  { fecha: "2026-11-01", nombre: "Todos los Santos", ambito: "nacional" },
-  { fecha: "2026-12-06", nombre: "Constitucion", ambito: "nacional" },
-  { fecha: "2026-12-08", nombre: "Inmaculada", ambito: "nacional" },
-  { fecha: "2026-12-25", nombre: "Navidad", ambito: "nacional" },
+
+const FIJOS_NACIONALES = [
+  ["01-01", "Ano Nuevo"],
+  ["01-06", "Reyes"],
+  ["05-01", "Fiesta del Trabajo"],
+  ["08-15", "Asuncion"],
+  ["10-12", "Fiesta Nacional"],
+  ["11-01", "Todos los Santos"],
+  ["12-06", "Constitucion"],
+  ["12-08", "Inmaculada"],
+  ["12-25", "Navidad"],
 ];
 
-const CANDIDATOS_ESPECIALES = [
-  { fecha: "2026-12-24", nombre: "Nochebuena", ambito: "candidato" },
-  { fecha: "2026-12-31", nombre: "Nochevieja", ambito: "candidato" },
-];
-
-function festivosIniciales() {
+function festivosDerivados(anio) {
   const mapa = {};
-  for (const f of FESTIVOS_2026) {
-    mapa[f.fecha] = { nombre: f.nombre, ambito: f.ambito, clase: "sdf" };
+  for (const [diaMes, nombre] of FIJOS_NACIONALES) {
+    mapa[`${anio}-${diaMes}`] = { nombre, ambito: "nacional", clase: "sdf" };
   }
-  for (const f of CANDIDATOS_ESPECIALES) {
-    mapa[f.fecha] = { nombre: f.nombre, ambito: f.ambito, clase: "laborable" };
-  }
+  const pascua = domingoDePascua(anio);
+  mapa[desplazar(pascua, -2)] = { nombre: "Viernes Santo", ambito: "nacional", clase: "sdf" };
+  mapa[`${anio}-02-28`] = { nombre: "Dia de Andalucia", ambito: "autonomico", clase: "sdf" };
+  mapa[desplazar(pascua, -3)] = { nombre: "Jueves Santo", ambito: "autonomico", clase: "sdf" };
   return mapa;
 }
 
-function clasificarDia(fechaISO, festivos) {
-  const marcado = festivos[fechaISO];
+const cacheDerivados = new Map();
+
+function derivadosDe(anio) {
+  if (!cacheDerivados.has(anio)) cacheDerivados.set(anio, festivosDerivados(anio));
+  return cacheDerivados.get(anio);
+}
+
+// `excepciones` guarda solo lo que el usuario ha tocado: una entrada con `nombre`
+// que no esta en el calendario derivado es un alta local; una sin `nombre` es una
+// reclasificacion de un festivo derivado.
+function clasificarDia(fechaISO, excepciones = {}) {
+  const marcado = excepciones[fechaISO];
   if (marcado && marcado.clase === "especial") return "especial";
   if (marcado && marcado.clase === "sdf") return "sdf";
+  if (!marcado || marcado.clase !== "laborable") {
+    if (derivadosDe(Number(fechaISO.slice(0, 4)))[fechaISO]) return "sdf";
+  }
   const dia = diaSemana(fechaISO);
-  if (dia === 0 || dia === 6) return "sdf";
-  return "laborable";
+  return dia === 0 || dia === 6 ? "sdf" : "laborable";
+}
+
+function calendarioDe(anio, excepciones = {}) {
+  // Se copia porque derivadosDe devuelve siempre la misma referencia cacheada:
+  // sin la copia, una reclasificacion contaminaria las llamadas siguientes.
+  const mapa = { ...derivadosDe(anio) };
+  for (const [fecha, exc] of Object.entries(excepciones)) {
+    if (Number(fecha.slice(0, 4)) !== anio) continue;
+    if (mapa[fecha]) mapa[fecha] = { ...mapa[fecha], clase: exc.clase };
+    else if (exc.nombre) mapa[fecha] = { nombre: exc.nombre, ambito: "local", clase: exc.clase };
+  }
+  return mapa;
 }
 
 // src/motor.js
@@ -331,6 +403,8 @@ function inicioSugerido(horas) {
   return INICIO_POR_DURACION[horas] || "15:00";
 }
 
+// `festivos` es el mapa de excepciones del usuario, no un calendario completo:
+// el calendario base lo deriva festivos.js a partir del anio de cada fecha.
 function partirGuardia(guardia, festivos, opciones = {}) {
   const cortar = opciones.cortarAMedianoche !== false;
   const cortarEspecial = opciones.especialCortaAMedianoche !== false;
@@ -377,7 +451,7 @@ function calcularGuardia(guardia, festivos, config) {
   const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
 
   const detallados = tramos.map((t) => {
-    const tarifa = tarifaEn(t.fecha, config.inicioResidencia)[t.tipo];
+    const tarifa = tarifaEn(t.fecha, config)[t.tipo];
     const importe = redondear(t.horas * tarifa);
     horasPorTipo[t.tipo] += t.horas;
     importePorTipo[t.tipo] = redondear(importePorTipo[t.tipo] + importe);
@@ -393,16 +467,22 @@ function calcularGuardia(guardia, festivos, config) {
 
 
 
-function tipoMedio(nominas, clase) {
+// La mas reciente, no la media: el IRPF se recalcula cada anio y sube con el anio
+// de residencia, asi que promediar una nomina de R1 con una de R3 da un tipo que no
+// describe a ninguna de las dos.
+function tipoReciente(nominas, clase) {
   const suyas = nominas.filter((n) => n.clase === clase && n.bruto > 0);
   if (suyas.length === 0) return null;
-  const suma = suyas.reduce((acc, n) => acc + (n.bruto - n.neto) / n.bruto, 0);
-  return Math.round((suma / suyas.length) * 1e6) / 1e6;
+  let mejor = suyas[0];
+  for (const n of suyas) {
+    if (n.periodo >= mejor.periodo) mejor = n; // >= : la ultima anadida gana el empate
+  }
+  return Math.round(((mejor.bruto - mejor.neto) / mejor.bruto) * 1e6) / 1e6;
 }
 
 function tiposEfectivos(nominas, config) {
-  const base = tipoMedio(nominas, "base");
-  const guardias = tipoMedio(nominas, "guardias");
+  const base = tipoReciente(nominas, "base");
+  const guardias = tipoReciente(nominas, "guardias");
   return {
     base: base === null ? config.retencionBase : base,
     guardias: guardias === null ? config.retencionGuardias : guardias,
@@ -426,11 +506,12 @@ function mesAnterior(anioMes) {
 function resumenMes(anioMes, estado) {
   const tipos = tiposEfectivos(estado.nominas, estado.config);
   const anio = anioResidenciaEn(`${anioMes}-15`, estado.config.inicioResidencia);
-  const brutoBase = retribucionFija(anio).mensual;
+  const brutoBase = retribucionFija(anio, estado.config).mensual;
 
   const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
   const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
   let nGuardias = 0;
+  let brutoConfirmado = 0;
 
   for (const [fecha, guardia] of Object.entries(estado.guardias)) {
     if (mesDe(fecha) !== anioMes) continue;
@@ -440,6 +521,7 @@ function resumenMes(anioMes, estado) {
       horasPorTipo[tipo] += r.horasPorTipo[tipo];
       importePorTipo[tipo] = redondear(importePorTipo[tipo] + r.importePorTipo[tipo]);
     }
+    if (guardia.hecha) brutoConfirmado = redondear(brutoConfirmado + r.bruto);
   }
 
   const brutoGuardias = redondear(
@@ -450,6 +532,10 @@ function resumenMes(anioMes, estado) {
   return {
     anioMes, nGuardias, horasPorTipo, importePorTipo,
     brutoBase, brutoGuardias, bruto: redondear(brutoBase + brutoGuardias),
+    brutoConfirmado,
+    // Restado, no sumado aparte: asi las dos partes cuadran siempre con el total
+    // aunque los redondeos por tipo y por guardia difieran en algun centimo.
+    brutoPrevisto: redondear(brutoGuardias - brutoConfirmado),
     netoBase: base.neto, netoGuardias: guardias.neto,
     neto: redondear(base.neto + guardias.neto),
   };
@@ -500,51 +586,73 @@ function compararHipotesis(anioMes, estado) {
   };
 }
 
-const CLAVE = "cuadrante_v5";
+// src/estado.js
+
+const CLAVE = "cuadrante_v6";
+const CLAVE_V5 = "cuadrante_v5";
 
 function estadoInicial() {
   return {
-    version: 5,
+    version: 6,
     config: {
-      inicioResidencia: "2026-05-27",
+      inicioResidencia: null,
       cortarAMedianoche: true,
       especialCortaAMedianoche: true,
       retencionBase: 0.089753,
       retencionGuardias: 0.032609,
+      retribuciones: null,
     },
-    guardias: {
-      "2026-06-08": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
-      "2026-06-15": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
-      "2026-06-20": { horas: 12, inicio: "08:00", lugar: "", hecha: true },
-      "2026-06-26": { horas: 7, inicio: "15:00", lugar: "", hecha: true },
-      "2026-08-02": { horas: 15, inicio: "17:00", lugar: "", hecha: true },
-      "2026-08-03": { horas: 8, inicio: "08:00", lugar: "", hecha: true },
-      "2026-08-05": { horas: 17, inicio: "15:00", lugar: "OBS", hecha: true },
-      "2026-08-11": { horas: 17, inicio: "15:00", lugar: "", hecha: true },
-      "2026-08-13": { horas: 17, inicio: "15:00", lugar: "", hecha: true },
-    },
-    festivos: festivosIniciales(),
-    nominas: [
-      { periodo: "2026-07", clase: "base", bruto: 1379.90, neto: 1256.05 },
-      { periodo: "2026-06", clase: "guardias", bruto: 484.83, neto: 469.02 },
-    ],
+    guardias: {},
+    festivos: {},
+    nominas: [],
   };
+}
+
+// v5 guardaba el calendario de festivos entero; v6 solo guarda las diferencias
+// contra el calendario derivado, para que las mejoras del codigo sigan llegando.
+function migrarV5(v5) {
+  const inicial = estadoInicial();
+  const festivos = {};
+  for (const [fecha, f] of Object.entries(v5.festivos || {})) {
+    const derivado = festivosDerivados(Number(fecha.slice(0, 4)))[fecha];
+    if (derivado) {
+      if (f.clase !== derivado.clase) festivos[fecha] = { clase: f.clase };
+    } else if (f.clase !== "laborable") {
+      festivos[fecha] = { nombre: f.nombre, clase: f.clase };
+    }
+  }
+  return {
+    ...inicial,
+    config: { ...inicial.config, ...(v5.config || {}), retribuciones: null },
+    guardias: v5.guardias || {},
+    festivos,
+    nominas: v5.nominas || [],
+  };
+}
+
+function leerJSON(almacen, clave) {
+  try {
+    const crudo = almacen.getItem(clave);
+    if (!crudo) return null;
+    const dato = JSON.parse(crudo);
+    return dato && typeof dato === "object" ? dato : null;
+  } catch {
+    return null;
+  }
 }
 
 function cargar(almacen) {
   const inicial = estadoInicial();
-  let guardado;
-  try {
-    guardado = JSON.parse(almacen.getItem(CLAVE));
-  } catch {
-    return inicial;
+  const guardado = leerJSON(almacen, CLAVE);
+  if (guardado) {
+    return {
+      ...inicial,
+      ...guardado,
+      config: { ...inicial.config, ...(guardado.config || {}) },
+    };
   }
-  if (!guardado || typeof guardado !== "object") return inicial;
-  return {
-    ...inicial,
-    ...guardado,
-    config: { ...inicial.config, ...(guardado.config || {}) },
-  };
+  const v5 = leerJSON(almacen, CLAVE_V5);
+  return v5 ? migrarV5(v5) : inicial;
 }
 
 function guardar(almacen, estado) {
@@ -570,6 +678,9 @@ const AVISO_SIN_VERIFICAR =
   "Regla del corte a medianoche sin verificar. Se confirma con la nomina de septiembre.";
 
 const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
+
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function hoyISO() {
   const d = new Date();
@@ -598,7 +709,7 @@ function iniciar(raiz, almacen) {
     const [anio, mes] = mesVisible.split("-").map(Number);
     const dias = diasDelMes(mesVisible);
     const hueco = (diaSemana(dias[0]) + 6) % 7; // lunes primero
-    const celdas = ["<div></div>".repeat(hueco)];
+    const celdas = ['<div aria-hidden="true"></div>'.repeat(hueco)];
     const hoy = hoyISO();
     for (const fecha of dias) {
       const g = estado.guardias[fecha];
@@ -614,7 +725,7 @@ function iniciar(raiz, almacen) {
         if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
         if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
       }
-      celdas.push(`<div class="${clases}" data-fecha="${fecha}"><span class="num">${num}</span>${detalle}</div>`);
+      celdas.push(`<button type="button" class="${clases}" data-fecha="${fecha}" aria-label="${fecha}"><span class="num">${num}</span>${detalle}</button>`);
     }
     const r = resumenMes(mesVisible, estado);
     const p = previsionIngreso(mesVisible, estado);
@@ -666,7 +777,7 @@ function iniciar(raiz, almacen) {
 
   function vistaFestivos() {
     const filas = Object.entries(estado.festivos).sort().map(([fecha, f]) => `
-      <tr><td>${fecha} ${f.nombre}</td><td class="cifra">
+      <tr><td>${fecha} ${esc(f.nombre)}</td><td class="cifra">
         <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
@@ -677,7 +788,7 @@ function iniciar(raiz, almacen) {
   function vistaNominas() {
     const t = tiposEfectivos(estado.nominas, estado.config);
     const filas = estado.nominas.map((n, i) => `
-      <tr><td>${n.periodo} ${n.clase}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
+      <tr><td>${esc(n.periodo)} ${esc(n.clase)}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
       <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
     return `<div class="tarjeta"><strong class="etiqueta">// nominas registradas</strong>
       <table>${filas}</table>
@@ -693,8 +804,9 @@ function iniciar(raiz, almacen) {
   }
 
   function vistaAnual() {
-    const r = resumenAnio(2026, estado);
-    return `<div class="tarjeta"><strong class="etiqueta">// 2026</strong><table>
+    const anio = Number(mesVisible.slice(0, 4));
+    const r = resumenAnio(anio, estado);
+    return `<div class="tarjeta"><strong class="etiqueta">// ${anio}</strong><table>
       <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
       <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
       <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
@@ -799,6 +911,10 @@ function iniciar(raiz, almacen) {
 
   raiz.querySelector("#modal").addEventListener("click", (ev) => {
     if (ev.target.id === "modal") cerrarModal();
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") cerrarModal();
   });
 
   pintar();
