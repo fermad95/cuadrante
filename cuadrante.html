@@ -188,7 +188,10 @@ tr:has(.total) td { border-bottom: none; border-top: 1px solid var(--borde); pad
   font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
   color: var(--tenue); margin: 1rem 0 .4rem;
 }
-.etiqueta-campo:first-of-type { margin-top: 0; }
+/* Solo dentro del modal: en una tarjeta el primer rotulo si necesita aire
+   por encima, porque viene despues de una tabla o una lista. */
+#modal .etiqueta-campo:first-of-type { margin-top: 0; }
+.tarjeta .etiqueta-campo { margin-top: 1.4rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
 .acciones-modal { display: flex; gap: .5rem; margin-top: 1.25rem; }
 .acciones-modal #m-guardar { margin-left: auto; }
