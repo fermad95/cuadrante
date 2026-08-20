@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resumenMes, mesAnterior, previsionIngreso, resumenAnio } from "../src/nomina.js";
+import { redondear } from "../src/fechas.js";
 
 const ESTADO = {
   config: {
@@ -99,4 +100,39 @@ test("el resumen anual suma los doce meses", () => {
   assert.equal(r.meses.length, 12);
   assert.equal(r.horasPorTipo.laborable, 88); // 21 de junio + 67 de agosto
   assert.equal(r.horasPorTipo.sdf, 19);       // 12 de junio + 7 de agosto
+});
+
+test("las guardias hechas y las previstas se separan", () => {
+  const estado = {
+    ...ESTADO,
+    guardias: {
+      "2026-08-05": { horas: 17, inicio: "15:00", hecha: true },
+      "2026-08-11": { horas: 17, inicio: "15:00", hecha: false },
+    },
+  };
+  const r = resumenMes("2026-08", estado);
+  assert.equal(r.brutoConfirmado, 239.19);
+  assert.equal(r.brutoPrevisto, 239.19);
+  assert.equal(r.brutoGuardias, 478.38);
+});
+
+test("una guardia sin marcar cuenta como prevista", () => {
+  const estado = {
+    ...ESTADO,
+    guardias: { "2026-08-05": { horas: 17, inicio: "15:00" } },
+  };
+  const r = resumenMes("2026-08", estado);
+  assert.equal(r.brutoConfirmado, 0);
+  assert.equal(r.brutoPrevisto, 239.19);
+});
+
+test("confirmado y previsto siempre suman el total", () => {
+  const r = resumenMes("2026-08", ESTADO);
+  assert.equal(redondear(r.brutoConfirmado + r.brutoPrevisto), r.brutoGuardias);
+});
+
+test("un mes sin guardias reparte ceros", () => {
+  const r = resumenMes("2026-07", ESTADO);
+  assert.equal(r.brutoConfirmado, 0);
+  assert.equal(r.brutoPrevisto, 0);
 });
