@@ -84,7 +84,7 @@ test("calendarioDe mezcla derivados, altas y reclasificaciones", () => {
     "2026-09-08": { nombre: "Fuensanta", clase: "sdf" },
   });
   assert.equal(c["2026-01-01"].clase, "especial");
-  assert.equal(c["2026-01-01"].nombre, "Ano Nuevo");
+  assert.equal(c["2026-01-01"].nombre, "Año Nuevo");
   assert.equal(c["2026-09-08"].nombre, "Fuensanta");
   assert.equal(c["2026-09-08"].ambito, "local");
   assert.equal(c["2026-12-25"].clase, "sdf");

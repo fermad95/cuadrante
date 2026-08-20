@@ -41,3 +41,15 @@ test("cada modulo importado esta en el bundle", () => {
     assert.ok(html.includes(simbolo), `falta ${simbolo}`);
   }
 });
+
+test("el bundle no lleva erratas de texto visibles", () => {
+  const html = construir();
+  // "Ano Nuevo" en vez de "Año Nuevo" significa otra cosa muy distinta.
+  assert.ok(!html.includes("Ano Nuevo"), "Ano Nuevo sin enie");
+  assert.ok(!html.includes(">anadir<"), "anadir sin enie en un boton");
+  assert.ok(!html.includes("Duracion"), "Duracion sin tilde");
+  assert.ok(!html.includes("etiqueta\">//"), "quedan titulos con el // del estilo terminal");
+  for (const snake of ["sueldo_base", "bruto_total", "neto_base", "neto_guardias", "total_neto"]) {
+    assert.ok(!html.includes(`<td>${snake}<`), `${snake} se muestra al usuario`);
+  }
+});
