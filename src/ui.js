@@ -77,10 +77,13 @@ export function iniciar(raiz, almacen) {
   // La intro solo aparece en el primer arranque con el tema espacial, o cuando
   // se pide desde Ajustes. Siempre se puede saltar, y con reduccion de
   // movimiento activada se omite entera.
-  function lanzarIntro() {
+  function lanzarIntro(pedida = false) {
     const caja = raiz.querySelector("#intro");
+    // La reduccion de movimiento del sistema significa "no me sueltes animaciones
+    // sin avisar", no "no me dejes ver una que he pedido". Solo frena la
+    // automatica del primer arranque.
     const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (sinMovimiento) return;
+    if (sinMovimiento && !pedida) return;
 
     caja.innerHTML = `
       <button id="intro-saltar">Saltar ▸</button>
@@ -390,7 +393,11 @@ export function iniciar(raiz, almacen) {
         <button data-tema="espacial" class="${c.tema === "espacial" ? "activo" : ""}">Una galaxia muy lejana</button>
       </div>
       ${c.tema === "espacial" ? `<div class="chips" style="margin-top:.4rem">
-        <button id="a-intro">▶ Ver la intro</button></div>` : ""}
+        <button id="a-intro">▶ Ver la intro</button></div>
+        ${window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? `<p class="aviso">Tu sistema pide reducir las animaciones, así que la
+             intro no salta sola al empezar. Desde aquí se reproduce igualmente.</p>`
+          : ""}` : ""}
 
       <p class="etiqueta-campo">Inicio de residencia</p>
       <input type="date" id="a-inicio" value="${c.inicioResidencia || ""}">
@@ -441,7 +448,7 @@ export function iniciar(raiz, almacen) {
         persistir();
         abrirAjustes(); // se repinta para que el boton activo sea el nuevo
       }
-      else if (b.id === "a-intro") { cerrarModal(); lanzarIntro(); }
+      else if (b.id === "a-intro") { cerrarModal(); lanzarIntro(true); }
       else if (b.id === "a-cancelar") cerrarModal();
       else if (b.id === "a-guardar") {
         const inicio = caja.querySelector("#a-inicio").value;
