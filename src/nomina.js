@@ -57,6 +57,7 @@ export function historialTipos(nominas, clase) {
 
     const fila = {
       periodo: n.periodo,
+      bruto: n.bruto,
       tipo,
       tipoCotizacion,
       tipoIrpf,

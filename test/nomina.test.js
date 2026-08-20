@@ -207,3 +207,10 @@ test("con IRPF a cero el salto se mide igual sobre el IRPF", () => {
   assert.equal(h[1].salto, 0.05);
   assert.equal(h[1].esSalto, true);
 });
+
+test("el historial expone el bruto de cada nomina, para saber sobre que se calibro", () => {
+  const h = historialTipos([
+    { periodo: "2026-06", clase: "guardias", bruto: 484.83, neto: 469.02 },
+  ], "guardias");
+  assert.equal(h[0].bruto, 484.83);
+});
