@@ -31,6 +31,22 @@ const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const GUION = {
+  episodio: "Episodio I",
+  titulo: "LA AMENAZA DE LA NÓMINA",
+  parrafos: [
+    "Es una época de incertidumbre. Un joven RESIDENTE ha comenzado su formación "
+    + "en un hospital de la periferia, sin saber aún cuánto va a cobrar por las "
+    + "guardias que le esperan.",
+    "Mientras el ANEXO XVI fija el valor de cada hora, nadie ha sabido decirle si "
+    + "el SAS parte las guardias a medianoche o las paga enteras a la tarifa del "
+    + "día en que empiezan. Trece euros con sesenta y ocho céntimos penden de esa "
+    + "respuesta.",
+    "Perseguido por la duda, el residente ha construido este CUADRANTE para "
+    + "calcular su destino antes de que llegue la nómina....",
+  ],
+};
+
 function hoyISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -56,6 +72,41 @@ export function iniciar(raiz, almacen) {
     if (pestana === "festivos") vista.innerHTML = vistaFestivos();
     if (pestana === "nominas") vista.innerHTML = vistaNominas();
     if (pestana === "anual") vista.innerHTML = vistaAnual();
+  }
+
+  // La intro solo aparece en el primer arranque con el tema espacial, o cuando
+  // se pide desde Ajustes. Siempre se puede saltar, y con reduccion de
+  // movimiento activada se omite entera.
+  function lanzarIntro() {
+    const caja = raiz.querySelector("#intro");
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (sinMovimiento) return;
+
+    caja.innerHTML = `
+      <button id="intro-saltar">Saltar ▸</button>
+      <p class="intro-lejos">Hace mucho tiempo, en un hospital muy, muy lejano....</p>
+      <div class="intro-logo">Cuadrante</div>
+      <div class="intro-espacio">
+        <div class="intro-crawl">
+          <p class="intro-episodio">${GUION.episodio}</p>
+          <h2 class="intro-titulo">${GUION.titulo}</h2>
+          ${GUION.parrafos.map((p) => `<p>${p}</p>`).join("")}
+        </div>
+      </div>`;
+    caja.hidden = false;
+    document.body.classList.add("con-intro");
+
+    const cerrar = () => {
+      caja.hidden = true;
+      caja.innerHTML = "";
+      document.body.classList.remove("con-intro");
+      clearTimeout(reloj);
+      document.removeEventListener("keydown", porTecla);
+    };
+    const porTecla = (ev) => { if (ev.key === "Escape" || ev.key === " ") cerrar(); };
+    const reloj = setTimeout(cerrar, 38000);
+    caja.onclick = cerrar;
+    document.addEventListener("keydown", porTecla);
   }
 
   function pintarBienvenida() {
@@ -332,6 +383,8 @@ export function iniciar(raiz, almacen) {
         <button data-tema="sobrio" class="${(c.tema || "sobrio") === "sobrio" ? "activo" : ""}">Sobrio</button>
         <button data-tema="espacial" class="${c.tema === "espacial" ? "activo" : ""}">Una galaxia muy lejana</button>
       </div>
+      ${c.tema === "espacial" ? `<div class="chips" style="margin-top:.4rem">
+        <button id="a-intro">▶ Ver la intro</button></div>` : ""}
 
       <p class="etiqueta-campo">Inicio de residencia</p>
       <input type="date" id="a-inicio" value="${c.inicioResidencia || ""}">
@@ -382,6 +435,7 @@ export function iniciar(raiz, almacen) {
         persistir();
         abrirAjustes(); // se repinta para que el boton activo sea el nuevo
       }
+      else if (b.id === "a-intro") { cerrarModal(); lanzarIntro(); }
       else if (b.id === "a-cancelar") cerrarModal();
       else if (b.id === "a-guardar") {
         const inicio = caja.querySelector("#a-inicio").value;
@@ -477,6 +531,7 @@ export function iniciar(raiz, almacen) {
       if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
         estado.config.inicioResidencia = valor;
         persistir(); pintar();
+        if (estado.config.tema === "espacial") lanzarIntro();
       }
     }
     else if (b.dataset.pestana) { pestana = b.dataset.pestana; pintar(); }
