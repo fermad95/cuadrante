@@ -244,19 +244,38 @@ button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, var(--
   background-attachment: fixed;
 }
 
-/* Rotulos y titulos: mayusculas muy espaciadas. */
+/* Tipografia: Anton para el rotulo (grotesca condensada muy pesada) y News
+   Cycle para todo lo demas, que desciende de News Gothic. */
+:root[data-tema="espacial"] {
+  --sans: "News Cycle", -apple-system, "Segoe UI", system-ui, Arial, sans-serif;
+  --serif: "News Cycle", -apple-system, "Segoe UI", system-ui, Arial, sans-serif;
+  --rotulo: Anton, "Arial Narrow", "Helvetica Neue Condensed", Impact, sans-serif;
+}
 :root[data-tema="espacial"] h1.marca {
-  font-family: var(--sans); font-weight: 800;
-  text-transform: uppercase; letter-spacing: .12em;
-  font-size: 1.5rem; color: var(--acento);
-  text-shadow: 0 0 18px rgba(255,213,74,.35);
+  font-family: var(--rotulo); font-weight: 400;
+  text-transform: uppercase; letter-spacing: .06em;
+  font-size: 2.1rem; line-height: 1; color: var(--acento);
+  text-shadow: 0 0 22px rgba(255,213,74,.4), 0 0 3px rgba(255,213,74,.6);
+}
+:root[data-tema="espacial"] .submarca {
+  font-family: var(--sans); letter-spacing: .22em;
+  text-transform: uppercase; font-size: 10px;
 }
 :root[data-tema="espacial"] .mes-titulo,
 :root[data-tema="espacial"] .modal-fecha {
-  font-family: var(--sans); font-weight: 700;
-  text-transform: uppercase; letter-spacing: .08em; font-size: 1.05rem;
+  font-family: var(--rotulo); font-weight: 400;
+  text-transform: uppercase; letter-spacing: .05em; font-size: 1.3rem;
 }
-:root[data-tema="espacial"] .etiqueta { color: var(--acento); opacity: .85; }
+:root[data-tema="espacial"] .etiqueta {
+  color: var(--acento); opacity: .9; font-weight: 700; letter-spacing: .16em;
+}
+:root[data-tema="espacial"] .pestanas button,
+:root[data-tema="espacial"] .etiqueta-campo {
+  text-transform: uppercase; letter-spacing: .1em; font-weight: 700;
+}
+:root[data-tema="espacial"] .cabecera-semana {
+  font-family: var(--sans); font-weight: 700; letter-spacing: .12em;
+}
 
 /* La cifra que importa brilla como una hoja de sable. */
 :root[data-tema="espacial"] .total.cifra,
@@ -279,9 +298,10 @@ button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, var(--
   perspective: 260px; margin: .5rem 0 1.25rem;
 }
 :root[data-tema="espacial"] .crawl p {
-  transform: rotateX(28deg); transform-origin: 50% 100%;
-  color: var(--acento); text-align: center; text-wrap: balance;
-  font-weight: 600; letter-spacing: .03em; line-height: 1.45;
+  transform: rotateX(32deg); transform-origin: 50% 100%;
+  color: var(--acento); text-align: justify; text-align-last: center;
+  font-family: var(--sans); font-weight: 700;
+  letter-spacing: .01em; line-height: 1.35; font-size: 1.05rem;
   text-shadow: 0 0 12px rgba(255,213,74,.3);
 }
 @media (prefers-reduced-motion: no-preference) {
