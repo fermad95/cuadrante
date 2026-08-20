@@ -9,6 +9,19 @@ export function inicioSugerido(horas) {
   return INICIO_POR_DURACION[horas] || "15:00";
 }
 
+// El horario no depende de la duracion sino del dia, y sale de dos reglas:
+// se entra a las 15:00 si hoy se trabaja (despues de la jornada ordinaria) o a
+// las 09:00 si no; y se sale a las 08:00 si manana se trabaja o a las 09:00 si
+// no. De ahi salen los cuatro casos reales (L-J 17h, V 18h, S 24h, D 23h) y
+// ademas quedan resueltos los festivos entre semana sin tabla aparte.
+export function sugerenciaPara(fechaISO, festivos = {}) {
+  const seTrabajaHoy = clasificarDia(fechaISO, festivos) === "laborable";
+  const seTrabajaManana = clasificarDia(diaSiguiente(fechaISO), festivos) === "laborable";
+  const inicio = seTrabajaHoy ? "15:00" : "09:00";
+  const fin = seTrabajaManana ? "08:00" : "09:00";
+  return { horas: (aMinutos(fin) + 1440 - aMinutos(inicio)) / 60, inicio };
+}
+
 // `festivos` es el mapa de excepciones del usuario, no un calendario completo:
 // el calendario base lo deriva festivos.js a partir del anio de cada fecha.
 export function partirGuardia(guardia, festivos, opciones = {}) {
