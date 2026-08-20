@@ -36,7 +36,7 @@ export function mesAnterior(anioMes) {
 export function resumenMes(anioMes, estado) {
   const tipos = tiposEfectivos(estado.nominas, estado.config);
   const anio = anioResidenciaEn(`${anioMes}-15`, estado.config.inicioResidencia);
-  const brutoBase = retribucionFija(anio).mensual;
+  const brutoBase = retribucionFija(anio, estado.config).mensual;
 
   const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
   const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
