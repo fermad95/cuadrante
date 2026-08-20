@@ -25,13 +25,45 @@ test("con nominas el tipo sale de ellas", () => {
   assert.equal(t.nGuardias, 1);
 });
 
-test("varias nominas de una clase promedian", () => {
+test("con varias nominas manda la mas reciente, no la media", () => {
   const t = tiposEfectivos([
     { periodo: "2026-06", clase: "guardias", bruto: 100, neto: 96 },
     { periodo: "2026-07", clase: "guardias", bruto: 100, neto: 98 },
   ], CONFIG);
-  assert.equal(t.guardias, 0.03);
+  assert.equal(t.guardias, 0.02); // la de julio, no la media de 0.03
   assert.equal(t.nGuardias, 2);
+});
+
+test("el orden en el array no altera cual es la mas reciente", () => {
+  const t = tiposEfectivos([
+    { periodo: "2026-07", clase: "guardias", bruto: 100, neto: 98 },
+    { periodo: "2026-06", clase: "guardias", bruto: 100, neto: 96 },
+  ], CONFIG);
+  assert.equal(t.guardias, 0.02);
+});
+
+test("en empate de periodo gana la ultima anadida", () => {
+  const t = tiposEfectivos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90 },
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 85 },
+  ], CONFIG);
+  assert.equal(t.base, 0.15);
+});
+
+test("un anio nuevo no queda contaminado por el anterior", () => {
+  const t = tiposEfectivos([
+    { periodo: "2026-07", clase: "base", bruto: 1379.90, neto: 1256.05 },
+    { periodo: "2028-07", clase: "base", bruto: 1628.31, neto: 1350.00 },
+  ], CONFIG);
+  assert.equal(t.base, 0.17092); // solo la de 2028
+});
+
+test("las nominas con bruto cero se ignoran", () => {
+  const t = tiposEfectivos([
+    { periodo: "2026-06", clase: "guardias", bruto: 100, neto: 96 },
+    { periodo: "2026-08", clase: "guardias", bruto: 0, neto: 0 },
+  ], CONFIG);
+  assert.equal(t.guardias, 0.04);
 });
 
 test("una clase sin nominas no contamina a la otra", () => {
