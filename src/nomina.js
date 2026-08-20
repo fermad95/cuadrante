@@ -32,22 +32,41 @@ export function tiposEfectivos(nominas, config) {
 // `esSalto` marca los cambios grandes, que suelen ser una regularizacion.
 const SALTO_MINIMO = 0.01; // un punto porcentual
 
+const tasa = (parte, bruto) => Math.round((parte / bruto) * 1e6) / 1e6;
+
 export function historialTipos(nominas, clase) {
   const suyas = nominas
     .filter((n) => n.clase === clase && n.bruto > 0)
     .slice()
     .sort((a, b) => (a.periodo < b.periodo ? -1 : a.periodo > b.periodo ? 1 : 0));
-  let anterior = null;
+  let anterior = null;      // valor de referencia de la nomina previa
+  let anteriorEsIrpf = null; // de que tipo era, para no comparar peras con manzanas
   return suyas.map((n) => {
-    const tipo = Math.round(((n.bruto - n.neto) / n.bruto) * 1e6) / 1e6;
-    const salto = anterior === null ? null : Math.round((tipo - anterior) * 1e6) / 1e6;
+    const descontado = n.bruto - n.neto;
+    const tipo = tasa(descontado, n.bruto);
+    const desglosada = n.cotizacion != null && n.irpf != null;
+    const tipoCotizacion = desglosada ? tasa(n.cotizacion, n.bruto) : null;
+    const tipoIrpf = desglosada ? tasa(n.irpf, n.bruto) : null;
+
+    // La cotizacion va a tipo fijo por ley: lo que deriva es el IRPF. Cuando hay
+    // desglose se vigila ese, que es donde esta la senal; si no, el total.
+    const referencia = desglosada ? tipoIrpf : tipo;
+    const esIrpf = desglosada;
+    const comparable = anterior !== null && anteriorEsIrpf === esIrpf;
+    const salto = comparable ? Math.round((referencia - anterior) * 1e6) / 1e6 : null;
+
     const fila = {
       periodo: n.periodo,
       tipo,
+      tipoCotizacion,
+      tipoIrpf,
+      // Un céntimo de margen: los redondeos de la nomina no tienen por que cuadrar exactos.
+      cuadra: !desglosada || Math.abs(n.cotizacion + n.irpf - descontado) <= 0.02,
       salto,
       esSalto: salto !== null && Math.abs(salto) >= SALTO_MINIMO,
     };
-    anterior = tipo;
+    anterior = referencia;
+    anteriorEsIrpf = esIrpf;
     return fila;
   });
 }

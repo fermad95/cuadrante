@@ -136,3 +136,53 @@ test("un salto a la baja tambien se marca", () => {
 test("sin nominas de esa clase el historial esta vacio", () => {
   assert.deepEqual(historialTipos([{ periodo: "2026-06", clase: "guardias", bruto: 100, neto: 97 }], "base"), []);
 });
+
+test("una nomina sin desglose solo da el tipo total", () => {
+  const h = historialTipos([{ periodo: "2026-07", clase: "base", bruto: 100, neto: 90 }], "base");
+  assert.equal(h[0].tipo, 0.1);
+  assert.equal(h[0].tipoIrpf, null);
+  assert.equal(h[0].tipoCotizacion, null);
+});
+
+test("una nomina desglosada separa cotizacion e IRPF", () => {
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90, cotizacion: 6.4, irpf: 3.6 },
+  ], "base");
+  assert.equal(h[0].tipo, 0.1);
+  assert.equal(h[0].tipoCotizacion, 0.064);
+  assert.equal(h[0].tipoIrpf, 0.036);
+});
+
+test("con desglose el salto mira el IRPF, no el total", () => {
+  // La cotizacion baja y el IRPF sube: el total apenas se mueve, pero el IRPF
+  // ha pegado un salto y es lo que hay que avisar.
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90, cotizacion: 6.4, irpf: 3.6 },
+    { periodo: "2026-08", clase: "base", bruto: 100, neto: 89.9, cotizacion: 0.1, irpf: 10 },
+  ], "base");
+  assert.equal(h[1].esSalto, true);
+  assert.equal(h[1].salto, 0.064); // 10% - 3.6% de IRPF
+});
+
+test("sin desglose el salto sigue mirando el total", () => {
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90 },
+    { periodo: "2026-08", clase: "base", bruto: 100, neto: 84 },
+  ], "base");
+  assert.equal(h[1].esSalto, true);
+  assert.equal(h[1].salto, 0.06);
+});
+
+test("el desglose que no cuadra con el neto se marca", () => {
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90, cotizacion: 6, irpf: 1 },
+  ], "base");
+  assert.equal(h[0].cuadra, false);
+});
+
+test("el desglose correcto cuadra", () => {
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 100, neto: 90, cotizacion: 6.4, irpf: 3.6 },
+  ], "base");
+  assert.equal(h[0].cuadra, true);
+});

@@ -189,7 +189,12 @@ export function iniciar(raiz, almacen) {
         <input id="n-neto" placeholder="Neto" size="8">
         <button class="primario" id="n-anadir">Añadir</button>
       </div>
-      <p class="aviso" id="n-error"></p></div>`;
+      <div class="formulario">
+        <input id="n-cotizacion" placeholder="Cotización €" size="10">
+        <input id="n-irpf" placeholder="IRPF €" size="8">
+      </div>
+      <p class="aviso" id="n-error">Los dos últimos son opcionales, pero si los
+        copias de la nómina puedo separar lo fijo (cotización) de lo que varía (IRPF).</p></div>`;
   }
 
   // El tipo de IRPF se regulariza y puede moverse mes a mes. Se enseña la deriva
@@ -202,15 +207,21 @@ export function iniciar(raiz, almacen) {
         aún sin nóminas registradas.</p>`;
     }
     const pasos = h.map((f, i) => {
-      const pct = `${(f.tipo * 100).toFixed(2)} %`;
       const ultimo = i === h.length - 1;
+      // Con desglose se enseña el IRPF, que es lo que deriva; la cotizacion va
+      // aparte y en tenue, porque es de tipo fijo y no dice nada nuevo.
+      const cifra = f.tipoIrpf !== null
+        ? `<b>${(f.tipoIrpf * 100).toFixed(2)} %</b><span class="fijo">+${(f.tipoCotizacion * 100).toFixed(2)} cot.</span>`
+        : `<b>${(f.tipo * 100).toFixed(2)} %</b>`;
       const marca = f.esSalto
         ? `<span class="salto">${f.salto > 0 ? "▲" : "▼"} ${Math.abs(f.salto * 100).toFixed(2)}</span>`
         : "";
+      const aviso = f.cuadra ? "" : `<span class="salto" title="El desglose no cuadra con el neto">⚠</span>`;
       return `<span class="paso${ultimo ? " vigente" : ""}">${esc(f.periodo)}
-        <b>${pct}</b>${marca}</span>`;
+        ${cifra}${marca}${aviso}</span>`;
     }).join('<span class="flecha">→</span>');
     const saltos = h.filter((f) => f.esSalto);
+    const desglosadas = h.filter((f) => f.tipoIrpf !== null).length;
     return `
       <p class="etiqueta-campo">Retención de ${titulo.toLowerCase()}</p>
       <div class="historial">${pasos}</div>
@@ -219,7 +230,9 @@ export function iniciar(raiz, almacen) {
         de Hacienda: las previsiones de los meses anteriores se quedaron
         ${saltos[saltos.length - 1].salto > 0 ? "largas" : "cortas"}.</p>`
         : `<p class="aviso">Estable en ${cuantas} ${cuantas === 1 ? "nómina" : "nóminas"}.
-        Se usa el último valor para las previsiones.</p>`}`;
+        Se usa el último valor para las previsiones.${desglosadas === 0
+          ? " Si copias la cotización y el IRPF de tu nómina, puedo seguir solo la parte que varía."
+          : ""}</p>`}`;
   }
 
   function vistaAnual() {
@@ -511,10 +524,27 @@ export function iniciar(raiz, almacen) {
       } else if (neto > bruto) {
         error.textContent = "El neto no puede ser mayor que el bruto.";
       } else {
-        estado.nominas.push({
+        const cot = Number(leer("#n-cotizacion"));
+        const irpf = Number(leer("#n-irpf"));
+        const nomina = {
           periodo, clase: raiz.querySelector("#n-clase").value,
           bruto: redondear(bruto), neto: redondear(neto),
-        });
+        };
+        // El desglose es opcional, pero si se da tiene que ser entero y cuadrar.
+        if (cot > 0 || irpf > 0) {
+          if (!(cot > 0) || !(irpf > 0)) {
+            error.textContent = "Si desglosas, pon las dos: cotización e IRPF.";
+            return;
+          }
+          if (Math.abs(cot + irpf - (bruto - neto)) > 0.02) {
+            error.textContent = `Cotización + IRPF son ${eur(redondear(cot + irpf))}, `
+              + `pero del bruto al neto van ${eur(redondear(bruto - neto))}. Revísalo.`;
+            return;
+          }
+          nomina.cotizacion = redondear(cot);
+          nomina.irpf = redondear(irpf);
+        }
+        estado.nominas.push(nomina);
         persistir(); pintar();
       }
     }
