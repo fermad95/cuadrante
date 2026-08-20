@@ -332,3 +332,94 @@ button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, var(--
 .historial .flecha { color: var(--tenue); font-size: 11px; }
 .historial .salto { color: var(--sdf); margin-left: .35rem; font-size: 11px; }
 .historial .paso .fijo { color: var(--tenue); font-size: 10px; margin-left: .3rem; opacity: .8; }
+
+/* ---------------------------------------------------------------
+   Secuencia de apertura. Tres tiempos encadenados: el texto lejano,
+   el rotulo alejandose y el crawl subiendo en perspectiva. Se salta
+   con un clic, con Escape o con la barra espaciadora, y se omite
+   entera si el sistema pide reduccion de movimiento.
+   --------------------------------------------------------------- */
+body.con-intro { overflow: hidden; }
+
+#intro {
+  position: fixed; inset: 0; z-index: 100; background: #000;
+  overflow: hidden; cursor: pointer;
+  font-family: var(--sans);
+}
+#intro[hidden] { display: none; }
+
+#intro-saltar {
+  position: absolute; top: 1rem; right: 1rem; z-index: 3;
+  background: transparent; border: 1px solid #2a3550; color: #7e8aa6;
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  padding: .4rem .7rem; border-radius: 8px;
+}
+#intro-saltar:hover { color: #cfd6e6; border-color: #4a5878; }
+
+/* 1. El texto lejano, en azul. */
+.intro-lejos {
+  position: absolute; top: 50%; left: 50%; margin: 0;
+  transform: translate(-50%, -50%);
+  width: min(88%, 620px); text-align: center;
+  color: #4bd5ee; font-size: clamp(1rem, 3.6vw, 1.45rem);
+  line-height: 1.5; opacity: 0;
+  animation: introLejos 5.5s ease-in-out forwards;
+}
+@keyframes introLejos {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  72%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 2. El rotulo, enorme, alejandose hasta perderse. */
+.intro-logo {
+  position: absolute; top: 50%; left: 50%; z-index: 2;
+  transform: translate(-50%, -50%) scale(7);
+  font-family: var(--rotulo, Anton, Impact, sans-serif);
+  font-weight: 400; text-transform: uppercase; letter-spacing: .04em;
+  font-size: clamp(2rem, 9vw, 4.5rem); line-height: 1;
+  color: #ffd54a; opacity: 0;
+  text-shadow: 0 0 28px rgba(255,213,74,.45);
+  animation: introLogo 5.6s cubic-bezier(.25,.1,.2,1) 5.5s forwards;
+}
+@keyframes introLogo {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(7); }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(.04); }
+}
+
+/* 3. El crawl, subiendo hacia el fondo. */
+.intro-espacio {
+  position: absolute; inset: 0;
+  perspective: 380px; perspective-origin: 50% 0;
+  overflow: hidden;
+  /* Se difumina arriba para que el texto se pierda en la distancia. */
+  -webkit-mask-image: linear-gradient(to top, #000 42%, transparent 96%);
+  mask-image: linear-gradient(to top, #000 42%, transparent 96%);
+}
+.intro-crawl {
+  position: absolute; top: 100%; left: 50%;
+  width: min(84%, 560px);
+  transform-origin: 50% 0;
+  transform: translateX(-50%) rotateX(58deg);
+  color: #ffd54a; text-align: justify;
+  font-weight: 700; font-size: clamp(1rem, 3.5vw, 1.5rem); line-height: 1.5;
+  opacity: 0;
+  animation: introCrawl 27s linear 10.5s forwards;
+}
+.intro-crawl p { margin: 0 0 1.2em; }
+.intro-episodio, .intro-titulo {
+  text-align: center; letter-spacing: .05em;
+}
+.intro-titulo {
+  font-family: var(--rotulo, Anton, Impact, sans-serif);
+  font-weight: 400; text-transform: uppercase;
+  font-size: 1.5em; margin: 0 0 1.4em; line-height: 1.15;
+}
+@keyframes introCrawl {
+  0%   { opacity: 1; transform: translateX(-50%) rotateX(58deg) translateY(0); }
+  96%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) rotateX(58deg) translateY(-330%); }
+}
