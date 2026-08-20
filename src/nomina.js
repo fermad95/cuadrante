@@ -27,6 +27,31 @@ export function tiposEfectivos(nominas, config) {
   };
 }
 
+// El tipo de IRPF se regulariza y puede moverse de un mes a otro, sobre todo con
+// retribucion variable como las guardias. El historial deja ver la deriva, y
+// `esSalto` marca los cambios grandes, que suelen ser una regularizacion.
+const SALTO_MINIMO = 0.01; // un punto porcentual
+
+export function historialTipos(nominas, clase) {
+  const suyas = nominas
+    .filter((n) => n.clase === clase && n.bruto > 0)
+    .slice()
+    .sort((a, b) => (a.periodo < b.periodo ? -1 : a.periodo > b.periodo ? 1 : 0));
+  let anterior = null;
+  return suyas.map((n) => {
+    const tipo = Math.round(((n.bruto - n.neto) / n.bruto) * 1e6) / 1e6;
+    const salto = anterior === null ? null : Math.round((tipo - anterior) * 1e6) / 1e6;
+    const fila = {
+      periodo: n.periodo,
+      tipo,
+      salto,
+      esSalto: salto !== null && Math.abs(salto) >= SALTO_MINIMO,
+    };
+    anterior = tipo;
+    return fila;
+  });
+}
+
 export function aplicarRetencion(bruto, tipo) {
   const descuento = redondear(bruto * tipo);
   return { descuento, neto: redondear(bruto - descuento) };
