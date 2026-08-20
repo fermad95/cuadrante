@@ -331,3 +331,4 @@ button.peligro:hover { background: color-mix(in srgb, var(--peligro) 12%, var(--
 .historial .paso.vigente b { color: var(--acento); }
 .historial .flecha { color: var(--tenue); font-size: 11px; }
 .historial .salto { color: var(--sdf); margin-left: .35rem; font-size: 11px; }
+.historial .paso .fijo { color: var(--tenue); font-size: 10px; margin-left: .3rem; opacity: .8; }
