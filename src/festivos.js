@@ -3,13 +3,13 @@ import { diaSemana, desplazar } from "./fechas.js";
 import { domingoDePascua } from "./pascua.js";
 
 const FIJOS_NACIONALES = [
-  ["01-01", "Ano Nuevo"],
+  ["01-01", "Año Nuevo"],
   ["01-06", "Reyes"],
   ["05-01", "Fiesta del Trabajo"],
-  ["08-15", "Asuncion"],
+  ["08-15", "Asunción"],
   ["10-12", "Fiesta Nacional"],
   ["11-01", "Todos los Santos"],
-  ["12-06", "Constitucion"],
+  ["12-06", "Constitución"],
   ["12-08", "Inmaculada"],
   ["12-25", "Navidad"],
 ];
@@ -21,7 +21,7 @@ export function festivosDerivados(anio) {
   }
   const pascua = domingoDePascua(anio);
   mapa[desplazar(pascua, -2)] = { nombre: "Viernes Santo", ambito: "nacional", clase: "sdf" };
-  mapa[`${anio}-02-28`] = { nombre: "Dia de Andalucia", ambito: "autonomico", clase: "sdf" };
+  mapa[`${anio}-02-28`] = { nombre: "Día de Andalucía", ambito: "autonomico", clase: "sdf" };
   mapa[desplazar(pascua, -3)] = { nombre: "Jueves Santo", ambito: "autonomico", clase: "sdf" };
   return mapa;
 }

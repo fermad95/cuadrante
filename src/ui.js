@@ -8,16 +8,23 @@ import { calendarioDe } from "./festivos.js";
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+// La clave es interna (sin tildes, se usa como estado); el texto es lo que se lee.
+const PESTANAS = [
+  { clave: "calendario", texto: "Calendario" },
+  { clave: "festivos", texto: "Festivos" },
+  { clave: "nominas", texto: "Nóminas" },
+  { clave: "anual", texto: "Anual" },
+];
 const DURACIONES = [7, 8, 12, 15, 17, 24];
 const LUGARES = [
   { sigla: "URG", nombre: "Puerta de Urgencias" },
-  { sigla: "OBS", nombre: "Observacion" },
+  { sigla: "OBS", nombre: "Observación" },
   { sigla: "PT", nombre: "Puerta de Trauma" },
   { sigla: "DSS", nombre: "Deccu Sector Sur" },
   { sigla: "DCP", nombre: "Deccu Castilla del Pino" },
 ];
 const AVISO_SIN_VERIFICAR =
-  "Regla del corte a medianoche sin verificar. Se confirma con la nomina de septiembre.";
+  "Regla del corte a medianoche sin verificar. Se confirma con la nómina de septiembre.";
 
 const eur = (n) => `${n.toFixed(2).replace(".", ",")} €`;
 
@@ -39,8 +46,9 @@ export function iniciar(raiz, almacen) {
   function pintar() {
     if (!estado.config.inicioResidencia) return pintarBienvenida();
     raiz.querySelector("#pestanas").hidden = false;
-    raiz.querySelector("#pestanas").innerHTML = ["calendario", "festivos", "nominas", "anual"]
-      .map((p) => `<button data-pestana="${p}" class="${p === pestana ? "activo" : ""}">${p}</button>`)
+    raiz.querySelector("#pestanas").innerHTML = PESTANAS
+      .map(({ clave, texto }) =>
+        `<button data-pestana="${clave}" class="${clave === pestana ? "activo" : ""}">${texto}</button>`)
       .join("");
     const vista = raiz.querySelector("#vista");
     if (pestana === "calendario") vista.innerHTML = vistaCalendario();
@@ -53,15 +61,15 @@ export function iniciar(raiz, almacen) {
     raiz.querySelector("#pestanas").hidden = true;
     raiz.querySelector("#vista").innerHTML = `
       <div class="tarjeta">
-        <strong class="etiqueta">// bienvenida</strong>
-        <p>Para calcular tus guardias necesito saber cuando empezaste la residencia.
-           De esa fecha salen tu anio (R1 a R5) y las tarifas que te corresponden.</p>
+        <strong class="etiqueta">Empecemos</strong>
+        <p>Para calcular tus guardias necesito saber cuándo empezaste la residencia.
+           De esa fecha salen tu año (R1 a R5) y las tarifas que te corresponden.</p>
         <p class="etiqueta-campo">Fecha de inicio</p>
         <input type="date" id="b-inicio" value="">
         <div class="acciones-modal">
           <button class="primario" id="b-empezar">Empezar</button>
         </div>
-        <p class="aviso">Puedes cambiarla despues en Ajustes.</p>
+        <p class="aviso">Puedes cambiarla después en Ajustes.</p>
       </div>`;
   }
 
@@ -103,33 +111,33 @@ export function iniciar(raiz, almacen) {
           ${["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cabecera-semana">${d}</div>`).join("")}
         </div>
         <div class="rejilla">${celdas.join("")}</div>
-        <p class="aviso">Las guardias con borde punteado aun no estan marcadas como
-          realizadas: cuentan como prevision.</p>
+        <p class="aviso">Las guardias con borde punteado aún no están marcadas como
+          realizadas: cuentan como previsión.</p>
       </div>
       <div class="tarjeta">
-        <strong class="etiqueta">// ${MESES[mes - 1]} ${anio}</strong>
+        <strong class="etiqueta">Resumen de ${MESES[mes - 1]}</strong>
         <table>
-          <tr><td>sueldo_base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
+          <tr><td>Sueldo base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
           ${filaTipo("laborable", r)}${filaTipo("sdf", r)}${filaTipo("especial", r)}
-          <tr><td>bruto_total</td><td class="cifra">${eur(r.bruto)}</td></tr>
-          <tr><td>guardias confirmadas</td><td class="cifra">${eur(r.brutoConfirmado)}</td></tr>
-          <tr><td>guardias previstas</td><td class="cifra">${eur(r.brutoPrevisto)}</td></tr>
-          <tr><td>neto_base</td><td class="cifra">${eur(r.netoBase)}</td></tr>
-          <tr><td>neto_guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
-          <tr><td class="total">total_neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
+          <tr><td>Bruto total</td><td class="cifra">${eur(r.bruto)}</td></tr>
+          <tr><td>Guardias confirmadas</td><td class="cifra">${eur(r.brutoConfirmado)}</td></tr>
+          <tr><td>Guardias previstas</td><td class="cifra">${eur(r.brutoPrevisto)}</td></tr>
+          <tr><td>Neto de la nómina base</td><td class="cifra">${eur(r.netoBase)}</td></tr>
+          <tr><td>Neto de las guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
+          <tr><td class="total">Total neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
         </table>
         ${c.difieren ? `<p class="aviso">${AVISO_SIN_VERIFICAR}<br>
           Con corte: ${eur(c.conCorte.brutoGuardias)} · sin corte: ${eur(c.sinCorte.brutoGuardias)}
           · difieren en ${eur(c.diferencia)}.</p>` : ""}
       </div>
       <div class="tarjeta">
-        <strong class="etiqueta">// se ingresa este mes</strong>
+        <strong class="etiqueta">Lo que ingresas este mes</strong>
         <table>
-          <tr><td>nomina base</td><td class="cifra">${eur(p.base)}</td></tr>
-          <tr><td>guardias de ${p.guardiasDe}</td><td class="cifra">${eur(p.importeGuardias)}</td></tr>
-          <tr><td class="total">total</td><td class="cifra total">${eur(p.total)}</td></tr>
+          <tr><td>Nómina base</td><td class="cifra">${eur(p.base)}</td></tr>
+          <tr><td>Guardias de ${p.guardiasDe}</td><td class="cifra">${eur(p.importeGuardias)}</td></tr>
+          <tr><td class="total">Total</td><td class="cifra total">${eur(p.total)}</td></tr>
         </table>
-        <p class="aviso">Las guardias se cobran en la nomina del mes siguiente.</p>
+        <p class="aviso">Las guardias se cobran en la nómina del mes siguiente.</p>
       </div>`;
   }
 
@@ -150,16 +158,16 @@ export function iniciar(raiz, almacen) {
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
     return `<div class="tarjeta">
-      <strong class="etiqueta">// festivos ${anio}</strong>
+      <strong class="etiqueta">Festivos de ${anio}</strong>
       <table>${filas}</table>
       <p class="aviso">Marca como especial los que se retribuyan a la tarifa doble.
         Tienes ${locales} festivo${locales === 1 ? "" : "s"} local${locales === 1 ? "" : "es"}
         dado${locales === 1 ? "" : "s"} de alta para ${anio}; cada municipio tiene dos.</p>
-      <p class="etiqueta-campo">Anadir festivo local</p>
+      <p class="etiqueta-campo">Añadir festivo local</p>
       <div class="formulario">
         <input type="date" id="f-fecha">
-        <input id="f-nombre" placeholder="nombre" size="14">
-        <button class="primario" id="f-anadir">anadir</button>
+        <input id="f-nombre" placeholder="Nombre del festivo" size="14">
+        <button class="primario" id="f-anadir">Añadir</button>
       </div></div>`;
   }
 
@@ -168,16 +176,18 @@ export function iniciar(raiz, almacen) {
     const filas = estado.nominas.map((n, i) => `
       <tr><td>${esc(n.periodo)} ${esc(n.clase)}</td><td class="cifra">${eur(n.bruto)} → ${eur(n.neto)}
       <button class="peligro" data-borrar-nomina="${i}">×</button></td></tr>`).join("");
-    return `<div class="tarjeta"><strong class="etiqueta">// nominas registradas</strong>
+    return `<div class="tarjeta"><strong class="etiqueta">Nóminas registradas</strong>
       <table>${filas}</table>
-      <p class="tenue">Tipo efectivo base: ${(t.base * 100).toFixed(2)} % (${t.nBase} nominas)<br>
-         Tipo efectivo guardias: ${(t.guardias * 100).toFixed(2)} % (${t.nGuardias} nominas)</p>
+      <p class="tenue">Retención efectiva de la base: ${(t.base * 100).toFixed(2)} %
+         (${t.nBase} ${t.nBase === 1 ? "nómina" : "nóminas"})<br>
+         Retención efectiva de las guardias: ${(t.guardias * 100).toFixed(2)} %
+         (${t.nGuardias} ${t.nGuardias === 1 ? "nómina" : "nóminas"})</p>
       <div class="formulario">
         <input id="n-periodo" placeholder="2026-09" size="8">
-        <select id="n-clase"><option value="base">base</option><option value="guardias">guardias</option></select>
-        <input id="n-bruto" placeholder="bruto" size="8">
-        <input id="n-neto" placeholder="neto" size="8">
-        <button class="primario" id="n-anadir">anadir</button>
+        <select id="n-clase"><option value="base">Base</option><option value="guardias">Guardias</option></select>
+        <input id="n-bruto" placeholder="Bruto" size="8">
+        <input id="n-neto" placeholder="Neto" size="8">
+        <button class="primario" id="n-anadir">Añadir</button>
       </div>
       <p class="aviso" id="n-error"></p></div>`;
   }
@@ -185,12 +195,12 @@ export function iniciar(raiz, almacen) {
   function vistaAnual() {
     const anio = Number(mesVisible.slice(0, 4));
     const r = resumenAnio(anio, estado);
-    return `<div class="tarjeta"><strong class="etiqueta">// ${anio}</strong><table>
-      <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
-      <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
-      <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
-      <tr><td>bruto</td><td class="cifra">${eur(r.bruto)}</td></tr>
-      <tr><td class="total">neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
+    return `<div class="tarjeta"><strong class="etiqueta">Resumen de ${anio}</strong><table>
+      <tr><td><span class="punto punto-laborable"></span>Horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
+      <tr><td><span class="punto punto-sdf"></span>Horas festivas (S-D-F)</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
+      <tr><td><span class="punto punto-especial"></span>Horas de festivo especial</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
+      <tr><td>Bruto del año</td><td class="cifra">${eur(r.bruto)}</td></tr>
+      <tr><td class="total">Neto del año</td><td class="cifra total">${eur(r.neto)}</td></tr>
     </table></div>`;
   }
 
@@ -205,7 +215,7 @@ export function iniciar(raiz, almacen) {
         <td class="cifra">${t.horas}h × ${eur(t.tarifa)} = ${eur(t.importe)}</td></tr>`).join("");
       caja.innerHTML = `
         <strong class="modal-fecha">${fecha}</strong>
-        <p class="etiqueta-campo">Duracion</p>
+        <p class="etiqueta-campo">Duración</p>
         <div class="chips">${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
         <p class="etiqueta-campo">Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
         <p class="etiqueta-campo">Lugar</p>
@@ -276,14 +286,14 @@ export function iniciar(raiz, almacen) {
       <label><input type="checkbox" id="a-corte" ${c.cortarAMedianoche ? "checked" : ""}>
         Partir las guardias a medianoche</label><br>
       <label><input type="checkbox" id="a-corte-esp" ${c.especialCortaAMedianoche ? "checked" : ""}>
-        Partir tambien las de festivo especial</label>
+        Partir también las de festivo especial</label>
       <p class="aviso">${AVISO_SIN_VERIFICAR}</p>
 
       <p class="etiqueta-campo">Retenciones por defecto</p>
       <label>Base <input id="a-ret-base" value="${(c.retencionBase * 100).toFixed(4)}" size="6"> %</label>
       <label>Guardias <input id="a-ret-guardias" value="${(c.retencionGuardias * 100).toFixed(4)}" size="6"> %</label>
-      <p class="aviso">Solo se usan mientras no registres ninguna nomina de esa clase.
-        En cuanto registras una, manda la mas reciente.</p>
+      <p class="aviso">Solo se usan mientras no registres ninguna nómina de esa clase.
+        En cuanto registras una, manda la más reciente.</p>
 
       <p class="etiqueta-campo">Valor hora (laborable / S-D-F / especial)</p>
       <table>${filas}</table>
@@ -291,7 +301,7 @@ export function iniciar(raiz, almacen) {
       <input id="a-sueldo" value="${r.sueldoBase}" size="8">
       <p class="aviso">Valores del anexo XVI, 2026.${
         anioEnCurso > 2026
-          ? ` Estamos en ${anioEnCurso}: contrastalos con tu nomina, el SAS los actualiza por convenio.`
+          ? ` Estamos en ${anioEnCurso}: contrástalos con tu nómina, el SAS los actualiza por convenio.`
           : ""}</p>
 
       <p class="etiqueta-campo">Copia de seguridad</p>
@@ -335,7 +345,7 @@ export function iniciar(raiz, almacen) {
           persistir(); cerrarModal(); pintar();
         } else {
           caja.querySelector("#a-error").textContent =
-            "Ese texto no es una copia valida del cuadrante.";
+            "Ese texto no es una copia válida del cuadrante.";
         }
       }
       else if (b.id === "a-borrar-todo") {

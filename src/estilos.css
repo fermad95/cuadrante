@@ -81,9 +81,10 @@ h1.marca {
 }
 
 .etiqueta {
-  display: block; font-family: var(--mono); font-size: 11.5px;
-  letter-spacing: .04em; color: var(--tenue); font-weight: 500;
-  margin-bottom: .6rem;
+  display: block; font-family: var(--sans); font-size: 11px;
+  text-transform: uppercase; letter-spacing: .09em;
+  color: var(--tenue); font-weight: 600;
+  margin-bottom: .75rem;
 }
 
 .tenue { color: var(--tenue); }
