@@ -7,7 +7,13 @@ import { cargar, guardar } from "./estado.js";
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const DURACIONES = [7, 8, 12, 15, 17, 24];
-const LUGARES = ["PTA", "OBS", "INT", "RS", "HP"];
+const LUGARES = [
+  { sigla: "URG", nombre: "Puerta de Urgencias" },
+  { sigla: "OBS", nombre: "Observacion" },
+  { sigla: "PT", nombre: "Puerta de Trauma" },
+  { sigla: "DSS", nombre: "Deccu Sector Sur" },
+  { sigla: "DCP", nombre: "Deccu Castilla del Pino" },
+];
 const AVISO_SIN_VERIFICAR =
   "Regla del corte a medianoche sin verificar. Se confirma con la nomina de septiembre.";
 
@@ -153,7 +159,7 @@ export function iniciar(raiz, almacen) {
         <div>${DURACIONES.map((h) => `<button data-horas="${h}" class="${g.horas === h ? "activo" : ""}">${h}h</button>`).join(" ")}</div>
         <p>Hora de inicio <input id="m-inicio" value="${g.inicio}" size="5"></p>
         <p>Lugar</p>
-        <div>${LUGARES.map((l) => `<button data-lugar="${l}" class="${g.lugar === l ? "activo" : ""}">${l}</button>`).join(" ")}
+        <div>${LUGARES.map((l) => `<button data-lugar="${l.sigla}" class="${g.lugar === l.sigla ? "activo" : ""}">${l.nombre}</button>`).join(" ")}
              <button data-lugar="" class="${g.lugar === "" ? "activo" : ""}">sin especificar</button></div>
         <p><label><input type="checkbox" id="m-hecha" ${g.hecha ? "checked" : ""}> Guardia ya realizada</label></p>
         <table style="margin-top:.75rem">${tramos}
