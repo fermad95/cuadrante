@@ -47,6 +47,7 @@ export function resumenMes(anioMes, estado) {
   const horasPorTipo = { laborable: 0, sdf: 0, especial: 0 };
   const importePorTipo = { laborable: 0, sdf: 0, especial: 0 };
   let nGuardias = 0;
+  let brutoConfirmado = 0;
 
   for (const [fecha, guardia] of Object.entries(estado.guardias)) {
     if (mesDe(fecha) !== anioMes) continue;
@@ -56,6 +57,7 @@ export function resumenMes(anioMes, estado) {
       horasPorTipo[tipo] += r.horasPorTipo[tipo];
       importePorTipo[tipo] = redondear(importePorTipo[tipo] + r.importePorTipo[tipo]);
     }
+    if (guardia.hecha) brutoConfirmado = redondear(brutoConfirmado + r.bruto);
   }
 
   const brutoGuardias = redondear(
@@ -66,6 +68,10 @@ export function resumenMes(anioMes, estado) {
   return {
     anioMes, nGuardias, horasPorTipo, importePorTipo,
     brutoBase, brutoGuardias, bruto: redondear(brutoBase + brutoGuardias),
+    brutoConfirmado,
+    // Restado, no sumado aparte: asi las dos partes cuadran siempre con el total
+    // aunque los redondeos por tipo y por guardia difieran en algun centimo.
+    brutoPrevisto: redondear(brutoGuardias - brutoConfirmado),
     netoBase: base.neto, netoGuardias: guardias.neto,
     neto: redondear(base.neto + guardias.neto),
   };

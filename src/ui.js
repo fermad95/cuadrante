@@ -141,8 +141,9 @@ export function iniciar(raiz, almacen) {
   }
 
   function vistaAnual() {
-    const r = resumenAnio(2026, estado);
-    return `<div class="tarjeta"><strong class="etiqueta">// 2026</strong><table>
+    const anio = Number(mesVisible.slice(0, 4));
+    const r = resumenAnio(anio, estado);
+    return `<div class="tarjeta"><strong class="etiqueta">// ${anio}</strong><table>
       <tr><td>horas laborables</td><td class="cifra">${r.horasPorTipo.laborable}h</td></tr>
       <tr><td>horas S-D-F</td><td class="cifra">${r.horasPorTipo.sdf}h</td></tr>
       <tr><td>horas especiales</td><td class="cifra">${r.horasPorTipo.especial}h</td></tr>
