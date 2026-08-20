@@ -12,10 +12,14 @@ export function diaSemana(fechaISO) {
   return new Date(a, m - 1, d).getDay();
 }
 
-export function diaSiguiente(fechaISO) {
+export function desplazar(fechaISO, dias) {
   const { a, m, d } = partes(fechaISO);
-  const siguiente = new Date(a, m - 1, d + 1);
-  return texto(siguiente.getFullYear(), siguiente.getMonth() + 1, siguiente.getDate());
+  const x = new Date(a, m - 1, d + dias);
+  return texto(x.getFullYear(), x.getMonth() + 1, x.getDate());
+}
+
+export function diaSiguiente(fechaISO) {
+  return desplazar(fechaISO, 1);
 }
 
 export function aMinutos(hora) {
