@@ -186,3 +186,24 @@ test("el desglose correcto cuadra", () => {
   ], "base");
   assert.equal(h[0].cuadra, true);
 });
+
+test("un IRPF de cero es un desglose valido, no la ausencia de desglose", () => {
+  // Hasta la primera regularizacion el IRPF de un residente suele ser 0 y todo
+  // lo descontado es cotizacion.
+  const h = historialTipos([
+    { periodo: "2026-07", clase: "base", bruto: 1379.90, neto: 1256.05,
+      cotizacion: 123.85, irpf: 0 },
+  ], "base");
+  assert.equal(h[0].tipoIrpf, 0);
+  assert.equal(h[0].tipoCotizacion, 0.089753);
+  assert.equal(h[0].cuadra, true);
+});
+
+test("con IRPF a cero el salto se mide igual sobre el IRPF", () => {
+  const h = historialTipos([
+    { periodo: "2026-12", clase: "base", bruto: 100, neto: 91, cotizacion: 9, irpf: 0 },
+    { periodo: "2027-01", clase: "base", bruto: 100, neto: 86, cotizacion: 9, irpf: 5 },
+  ], "base");
+  assert.equal(h[1].salto, 0.05);
+  assert.equal(h[1].esSalto, true);
+});

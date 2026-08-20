@@ -1618,16 +1618,26 @@ function iniciar(raiz, almacen) {
       } else if (neto > bruto) {
         error.textContent = "El neto no puede ser mayor que el bruto.";
       } else {
-        const cot = Number(leer("#n-cotizacion"));
-        const irpf = Number(leer("#n-irpf"));
+        // Cero es un valor legitimo: hasta la primera regularizacion el IRPF de
+        // un residente suele ser 0. Por eso se mira si el campo esta vacio, no
+        // si vale mas que cero.
+        const cotTexto = raiz.querySelector("#n-cotizacion").value.trim();
+        const irpfTexto = raiz.querySelector("#n-irpf").value.trim();
+        const cot = Number(cotTexto.replace(",", "."));
+        const irpf = Number(irpfTexto.replace(",", "."));
         const nomina = {
           periodo, clase: raiz.querySelector("#n-clase").value,
           bruto: redondear(bruto), neto: redondear(neto),
         };
         // El desglose es opcional, pero si se da tiene que ser entero y cuadrar.
-        if (cot > 0 || irpf > 0) {
-          if (!(cot > 0) || !(irpf > 0)) {
-            error.textContent = "Si desglosas, pon las dos: cotización e IRPF.";
+        if (cotTexto !== "" || irpfTexto !== "") {
+          if (cotTexto === "" || irpfTexto === "") {
+            error.textContent = "Si desglosas, pon las dos: cotización e IRPF. "
+              + "Si una es cero, escribe 0.";
+            return;
+          }
+          if (!(cot >= 0) || !(irpf >= 0)) {
+            error.textContent = "La cotización y el IRPF no pueden ser negativos.";
             return;
           }
           if (Math.abs(cot + irpf - (bruto - neto)) > 0.02) {
