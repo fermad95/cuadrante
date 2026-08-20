@@ -81,6 +81,7 @@ export function iniciar(raiz, almacen) {
         const r = calcularGuardia({ ...g, fecha }, estado.festivos, estado.config);
         const tipos = [...new Set(r.tramos.map((t) => t.tipo))];
         clases += ` ${tipos[0]}`;
+        if (!g.hecha) clases += " prevista";
         detalle = `<span class="horas">${g.horas}h</span>`;
         if (g.lugar) detalle += `<span class="lugar">${g.lugar}</span>`;
         if (tipos.length > 1) detalle += `<span class="cruza">cruza</span>`;
@@ -102,6 +103,8 @@ export function iniciar(raiz, almacen) {
           ${["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cabecera-semana">${d}</div>`).join("")}
         </div>
         <div class="rejilla">${celdas.join("")}</div>
+        <p class="aviso">Las guardias con borde punteado aun no estan marcadas como
+          realizadas: cuentan como prevision.</p>
       </div>
       <div class="tarjeta">
         <strong class="etiqueta">// ${MESES[mes - 1]} ${anio}</strong>
@@ -109,6 +112,8 @@ export function iniciar(raiz, almacen) {
           <tr><td>sueldo_base</td><td class="cifra">${eur(r.brutoBase)}</td></tr>
           ${filaTipo("laborable", r)}${filaTipo("sdf", r)}${filaTipo("especial", r)}
           <tr><td>bruto_total</td><td class="cifra">${eur(r.bruto)}</td></tr>
+          <tr><td>guardias confirmadas</td><td class="cifra">${eur(r.brutoConfirmado)}</td></tr>
+          <tr><td>guardias previstas</td><td class="cifra">${eur(r.brutoPrevisto)}</td></tr>
           <tr><td>neto_base</td><td class="cifra">${eur(r.netoBase)}</td></tr>
           <tr><td>neto_guardias</td><td class="cifra">${eur(r.netoGuardias)}</td></tr>
           <tr><td class="total">total_neto</td><td class="cifra total">${eur(r.neto)}</td></tr>
@@ -136,13 +141,26 @@ export function iniciar(raiz, almacen) {
   }
 
   function vistaFestivos() {
-    const filas = Object.entries(estado.festivos).sort().map(([fecha, f]) => `
+    const anio = Number(mesVisible.slice(0, 4));
+    const calendario = calendarioDe(anio, estado.festivos);
+    const locales = Object.values(calendario).filter((f) => f.ambito === "local").length;
+    const filas = Object.entries(calendario).sort().map(([fecha, f]) => `
       <tr><td>${fecha} ${esc(f.nombre)}</td><td class="cifra">
         <button data-festivo="${fecha}" data-clase="sdf" class="${f.clase === "sdf" ? "activo" : ""}">S-D-F</button>
         <button data-festivo="${fecha}" data-clase="especial" class="${f.clase === "especial" ? "activo" : ""}">especial</button>
       </td></tr>`).join("");
-    return `<div class="tarjeta"><strong class="etiqueta">// festivos</strong><table>${filas}</table>
-      <p class="aviso">Marca como especial los que se retribuyan a ${eur(28.14)}/h.</p></div>`;
+    return `<div class="tarjeta">
+      <strong class="etiqueta">// festivos ${anio}</strong>
+      <table>${filas}</table>
+      <p class="aviso">Marca como especial los que se retribuyan a la tarifa doble.
+        Tienes ${locales} festivo${locales === 1 ? "" : "s"} local${locales === 1 ? "" : "es"}
+        dado${locales === 1 ? "" : "s"} de alta para ${anio}; cada municipio tiene dos.</p>
+      <p class="etiqueta-campo">Anadir festivo local</p>
+      <div class="formulario">
+        <input type="date" id="f-fecha">
+        <input id="f-nombre" placeholder="nombre" size="14">
+        <button class="primario" id="f-anadir">anadir</button>
+      </div></div>`;
   }
 
   function vistaNominas() {
@@ -160,7 +178,8 @@ export function iniciar(raiz, almacen) {
         <input id="n-bruto" placeholder="bruto" size="8">
         <input id="n-neto" placeholder="neto" size="8">
         <button class="primario" id="n-anadir">anadir</button>
-      </div></div>`;
+      </div>
+      <p class="aviso" id="n-error"></p></div>`;
   }
 
   function vistaAnual() {
@@ -399,21 +418,44 @@ export function iniciar(raiz, almacen) {
     }
     else if (b.dataset.fecha) abrirModal(b.dataset.fecha);
     else if (b.dataset.festivo) {
-      const f = estado.festivos[b.dataset.festivo];
-      f.clase = f.clase === b.dataset.clase ? "laborable" : b.dataset.clase;
+      const fecha = b.dataset.festivo;
+      const anio = Number(fecha.slice(0, 4));
+      const actual = calendarioDe(anio, estado.festivos)[fecha];
+      const nueva = actual.clase === b.dataset.clase ? "laborable" : b.dataset.clase;
+      const derivado = calendarioDe(anio, {})[fecha];
+      // Si vuelve a coincidir con lo derivado, se borra la excepcion en vez de
+      // guardarla: el estado solo debe contener diferencias de verdad.
+      if (derivado && derivado.clase === nueva) delete estado.festivos[fecha];
+      else if (derivado) estado.festivos[fecha] = { clase: nueva };
+      else estado.festivos[fecha] = { nombre: actual.nombre, clase: nueva };
       persistir(); pintar();
+    }
+    else if (b.id === "f-anadir") {
+      const fecha = raiz.querySelector("#f-fecha").value;
+      const nombre = raiz.querySelector("#f-nombre").value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fecha) && nombre) {
+        estado.festivos[fecha] = { nombre, clase: "sdf" };
+        persistir(); pintar();
+      }
     }
     else if (b.dataset.borrarNomina) {
       estado.nominas.splice(Number(b.dataset.borrarNomina), 1); persistir(); pintar();
     }
     else if (b.id === "n-anadir") {
       const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
+      const periodo = raiz.querySelector("#n-periodo").value.trim();
       const bruto = Number(leer("#n-bruto"));
       const neto = Number(leer("#n-neto"));
-      if (bruto > 0 && neto > 0) {
+      const error = raiz.querySelector("#n-error");
+      if (!/^\d{4}-\d{2}$/.test(periodo)) {
+        error.textContent = "El periodo se escribe como 2026-09.";
+      } else if (!(bruto > 0) || !(neto > 0)) {
+        error.textContent = "Bruto y neto tienen que ser mayores que cero.";
+      } else if (neto > bruto) {
+        error.textContent = "El neto no puede ser mayor que el bruto.";
+      } else {
         estado.nominas.push({
-          periodo: raiz.querySelector("#n-periodo").value,
-          clase: raiz.querySelector("#n-clase").value,
+          periodo, clase: raiz.querySelector("#n-clase").value,
           bruto: redondear(bruto), neto: redondear(neto),
         });
         persistir(); pintar();
