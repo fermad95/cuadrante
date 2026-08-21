@@ -32,9 +32,11 @@ test("iniciarSesion sin SDK disponible rechaza con un error claro", async () => 
   await assert.rejects(() => iniciarSesion(), /conexion/);
 });
 
-test("creaGuardadoNube sin sesion se queda en no-disponible", async () => {
+test("creaGuardadoNube empieza comprobando y pasa a no-disponible sin sesion", async () => {
   const cambios = [];
   const programar = creaGuardadoNube((e) => cambios.push(e));
+  assert.equal(programar.estadoActual, "comprobando");
+  await new Promise((r) => setTimeout(r, 20));
   assert.equal(programar.estadoActual, "no-disponible");
   programar({ guardias: {} });
   assert.equal(programar.estadoActual, "pendiente");
