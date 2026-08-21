@@ -9,16 +9,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  esMasReciente, cargarRemoto, creaGuardadoNube, iniciarSesion, cerrarSesion, alCambiarSesion,
+  cargarNube, creaGuardadoNube, iniciarSesion, cerrarSesion, alCambiarSesion,
 } from "../src/nube.js";
 
-test("esMasReciente: gana quien tenga la marca de tiempo mas alta", () => {
-  assert.equal(esMasReciente({ actualizadoEn: 5 }, { actualizadoEn: 2 }), true);
-  assert.equal(esMasReciente({ actualizadoEn: 2 }, { actualizadoEn: 5 }), false);
-});
-
-test("cargarRemoto sin SDK disponible devuelve null", async () => {
-  assert.equal(await cargarRemoto(), null);
+test("cargarNube sin SDK disponible devuelve null", async () => {
+  assert.equal(await cargarNube(), null);
 });
 
 test("alCambiarSesion sin SDK disponible llama con null", async () => {

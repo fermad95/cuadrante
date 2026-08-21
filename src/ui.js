@@ -4,10 +4,7 @@ import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
 import { cargar, guardar, estadoInicial, importarEstado } from "./estado.js";
 import { cargarRemoto, creaGuardadoRemoto, esMasReciente } from "./persistencia.js";
-import {
-  alCambiarSesion, iniciarSesion, cerrarSesion,
-  cargarRemoto as cargarNube, creaGuardadoNube,
-} from "./nube.js";
+import { alCambiarSesion, iniciarSesion, cerrarSesion, cargarNube, creaGuardadoNube } from "./nube.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
 import { calendarioDe } from "./festivos.js";
 import { LOGO_URI } from "./logo.js";
