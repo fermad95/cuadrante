@@ -29,6 +29,10 @@ test("el estado inicial arranca con el corte a medianoche activado", () => {
   assert.equal(e.config.retencionBase, 0.089753);
 });
 
+test("el estado inicial no lleva marca de tiempo: nada le gana a un remoto real", () => {
+  assert.equal(estadoInicial().actualizadoEn, 0);
+});
+
 test("cargar sin nada guardado devuelve el estado inicial", () => {
   assert.deepEqual(cargar(almacenFalso()).guardias, {});
 });
