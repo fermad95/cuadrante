@@ -7,6 +7,7 @@ export const CLAVE_V5 = "cuadrante_v5";
 export function estadoInicial() {
   return {
     version: 6,
+    actualizadoEn: 0,
     config: {
       inicioResidencia: null,
       cortarAMedianoche: true,
@@ -14,7 +15,7 @@ export function estadoInicial() {
       retencionBase: 0.089753,
       retencionGuardias: 0.032609,
       retribuciones: null,
-      tema: "sobrio", // "sobrio" | "espacial"
+      tema: "espacial", // "sobrio" | "espacial"
     },
     guardias: {},
     festivos: {},
@@ -125,18 +126,23 @@ function leerJSON(almacen, clave) {
   }
 }
 
-export function cargar(almacen) {
+// Rellena con el estado inicial las claves que falten en un dato guardado o
+// recibido: asi quien no toca una preferencia sigue recibiendo las mejoras
+// futuras del codigo en vez de congelar una copia incompleta.
+export function normalizar(dato) {
   const inicial = estadoInicial();
+  return {
+    ...inicial,
+    ...dato,
+    config: { ...inicial.config, ...(dato.config || {}) },
+  };
+}
+
+export function cargar(almacen) {
   const guardado = leerJSON(almacen, CLAVE);
-  if (guardado) {
-    return {
-      ...inicial,
-      ...guardado,
-      config: { ...inicial.config, ...(guardado.config || {}) },
-    };
-  }
+  if (guardado) return normalizar(guardado);
   const v5 = leerJSON(almacen, CLAVE_V5);
-  return v5 ? migrarV5(v5) : inicial;
+  return v5 ? migrarV5(v5) : estadoInicial();
 }
 
 export function guardar(almacen, estado) {

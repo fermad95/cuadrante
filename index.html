@@ -1,6 +1,14 @@
+<!doctype html>
+<html lang="es">
+<head>
 <meta charset="utf-8">
-<title>cuadrante</title>
+<title>Cuadrante — guardias MIR</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05070d">
+<meta name="description" content="Calendario de guardias MIR, festivos, nóminas y previsión de ingresos.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 /* src/fuentes.css — fuentes incrustadas en base64 para que el HTML siga
    funcionando sin red. Anton y News Cycle, ambas con licencia SIL Open Font
@@ -446,6 +454,8 @@ body.con-intro { overflow: hidden; }
   100% { opacity: 0; transform: translateX(-50%) rotateX(58deg) translateY(-330%); }
 }
 </style>
+</head>
+<body>
 <header class="cabecera">
   <div class="marca-grupo">
     <img id="logo-app" class="logo-app" alt="">
@@ -2069,3 +2079,5 @@ function iniciar(raiz, almacen) {
 
 iniciar(document.body, localStorage);
 </script>
+</body>
+</html>

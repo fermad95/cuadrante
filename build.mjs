@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const raiz = dirname(fileURLToPath(import.meta.url));
-const ORDEN = ["fechas.js", "pascua.js", "tarifas.js", "festivos.js", "motor.js", "nomina.js", "estado.js", "ui.js"];
+const ORDEN = ["fechas.js", "pascua.js", "tarifas.js", "festivos.js", "motor.js", "nomina.js", "estado.js", "persistencia.js", "nube.js", "logo.js", "ui.js"];
 
 function leer(nombre) {
   return readFileSync(join(raiz, "src", nombre), "utf8");
@@ -33,7 +33,42 @@ iniciar(document.body, localStorage);
 </script>`;
 }
 
+// Documento completo, para servir la app como una pagina normal (GitHub
+// Pages) en vez de como fragmento embebido en un Artifact de Claude. Mismo
+// codigo, con <head> propio: manifest e iconos para "Anadir a pantalla de
+// inicio", que un Artifact no puede ofrecer (el icono ahi lo controla
+// claude.ai, no esta pagina).
+export function construirDocumento() {
+  const js = ORDEN.map((n) => desmodularizar(leer(n))).join("\n\n");
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Cuadrante — guardias MIR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05070d">
+<meta name="description" content="Calendario de guardias MIR, festivos, nóminas y previsión de ingresos.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+${leer("fuentes.css").trim()}
+${leer("estilos.css").trim()}
+</style>
+</head>
+<body>
+${leer("plantilla.html").trim()}
+<script type="module">
+${js}
+
+iniciar(document.body, localStorage);
+</script>
+</body>
+</html>`;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   writeFileSync(join(raiz, "cuadrante.html"), construir(), "utf8");
-  console.log("cuadrante.html generado");
+  writeFileSync(join(raiz, "index.html"), construirDocumento(), "utf8");
+  console.log("cuadrante.html e index.html generados");
 }

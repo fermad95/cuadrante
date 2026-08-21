@@ -3,8 +3,14 @@ import { diasDelMes, diaSemana, redondear } from "./fechas.js";
 import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
 import { cargar, guardar, estadoInicial, importarEstado } from "./estado.js";
+import { cargarRemoto, creaGuardadoRemoto, esMasReciente } from "./persistencia.js";
+import {
+  alCambiarSesion, iniciarSesion, cerrarSesion,
+  cargarRemoto as cargarNube, creaGuardadoNube,
+} from "./nube.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
 import { calendarioDe } from "./festivos.js";
+import { LOGO_URI } from "./logo.js";
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -56,8 +62,41 @@ export function iniciar(raiz, almacen) {
   const estado = cargar(almacen);
   let pestana = "calendario";
   let mesVisible = hoyISO().slice(0, 7);
+  let ajustesAbierto = false;
 
-  const persistir = () => guardar(almacen, estado);
+  raiz.querySelector("#logo-app").src = LOGO_URI;
+
+  let sesion = null; // { uid, nombre, correo, foto } | null
+
+  // Repinta Ajustes cuando cambia el estado del guardado en la nube, pero
+  // solo si esta abierto: no tiene sentido tocar la pantalla si el usuario
+  // esta en el calendario. Dos canales independientes: el Artifact de Claude
+  // (si la app vive ahi) y Firebase (si hay sesion de Google) — cualquiera
+  // de los dos, o ninguno, puede estar disponible segun donde se abra la app.
+  const repintarAjustesSiAbierto = () => { if (ajustesAbierto) abrirAjustes(); };
+  const guardarRemoto = creaGuardadoRemoto(repintarAjustesSiAbierto);
+  const guardarNube = creaGuardadoNube(repintarAjustesSiAbierto);
+  const persistir = () => {
+    estado.actualizadoEn = Date.now();
+    guardar(almacen, estado);
+    guardarRemoto(estado);
+    guardarNube(estado);
+  };
+
+  // Se usa tanto para lo que llega del Artifact como de Firebase: solo se
+  // adopta si es mas reciente que lo local, y pasa por la misma validacion
+  // que la copia de seguridad pegada a mano.
+  function adoptarRemoto(remoto) {
+    if (!remoto || !esMasReciente(remoto, estado)) return;
+    const resultado = importarEstado(JSON.stringify(remoto));
+    if (!resultado.ok) return;
+    const tema = estado.config.tema;
+    Object.assign(estado, resultado.estado);
+    estado.config.tema = tema;
+    estado.actualizadoEn = remoto.actualizadoEn || Date.now();
+    guardar(almacen, estado);
+    pintar();
+  }
 
   function pintar() {
     document.documentElement.dataset.tema = estado.config.tema || "sobrio";
@@ -116,6 +155,7 @@ export function iniciar(raiz, almacen) {
     raiz.querySelector("#pestanas").hidden = true;
     raiz.querySelector("#vista").innerHTML = `
       <div class="tarjeta">
+        <img class="logo-bienvenida" src="${LOGO_URI}" alt="">
         <strong class="etiqueta">Empecemos</strong>
         <div class="crawl"><p>Para calcular tus guardias necesito saber cuándo empezaste
            la residencia. De esa fecha salen tu año (R1 a R5) y las tarifas que te
@@ -380,10 +420,35 @@ export function iniciar(raiz, almacen) {
   }
 
   function cerrarModal() {
+    ajustesAbierto = false;
     raiz.querySelector("#modal").classList.remove("abierto");
   }
 
+  // Dos canales posibles: Firebase (si hay sesion de Google, sincroniza de
+  // verdad entre dispositivos) y el Artifact de Claude (solo si la app vive
+  // ahi). Se prioriza Firebase en el mensaje porque es el que el usuario
+  // controla con su sesion; el del Artifact es un extra silencioso.
+  function textoEstadoGuardado() {
+    if (sesion) {
+      const e = guardarNube.estadoActual;
+      if (e === "al-dia") return "Copia en la nube (Google): al día.";
+      if (e === "pendiente") return "Copia en la nube (Google): guardando…";
+      if (e === "comprobando") return "Copia en la nube (Google): comprobando…";
+      return "Copia en la nube (Google): no disponible ahora mismo. Tus datos siguen "
+        + "a salvo en este navegador.";
+    }
+    const e = guardarRemoto.estadoActual;
+    if (e === "al-dia") {
+      return "Copia en el Artifact: al día. Inicia sesión con Google arriba para "
+        + "sincronizar entre dispositivos.";
+    }
+    if (e === "pendiente") return "Copia en el Artifact: guardando…";
+    return "Sin copia en la nube activa. Inicia sesión con Google arriba para "
+      + "sincronizar entre dispositivos, o copia este texto como respaldo.";
+  }
+
   function abrirAjustes() {
+    ajustesAbierto = true;
     const caja = raiz.querySelector("#caja-modal");
     const c = estado.config;
     const r = retribucionesDe(c);
@@ -396,7 +461,22 @@ export function iniciar(raiz, almacen) {
       </td></tr>`).join("");
 
     caja.innerHTML = `
-      <strong class="modal-fecha">Ajustes</strong>
+      <div class="modal-fecha-grupo">
+        <img class="logo-ajustes" src="${LOGO_URI}" alt="">
+        <strong class="modal-fecha">Ajustes</strong>
+      </div>
+
+      <p class="etiqueta-campo">Cuenta</p>
+      ${sesion ? `
+        <div class="cuenta-fila">
+          ${sesion.foto ? `<img class="avatar-cuenta" src="${esc(sesion.foto)}" alt="">` : ""}
+          <span class="tenue">${esc(sesion.nombre || sesion.correo || "Sesión iniciada")}</span>
+        </div>
+        <div class="chips" style="margin-top:.5rem"><button id="a-cerrar-sesion">Cerrar sesión</button></div>
+      ` : `
+        <div class="chips"><button id="a-iniciar-sesion" class="primario">Iniciar sesión con Google</button></div>
+        <p class="aviso">Sincroniza tus guardias entre el móvil y el ordenador.</p>
+      `}
 
       <p class="etiqueta-campo">Aspecto</p>
       <div class="chips">
@@ -442,8 +522,8 @@ export function iniciar(raiz, almacen) {
         <button id="a-importar">Importar lo pegado</button>
         <button class="peligro" id="a-borrar-todo">Borrar todo</button>
       </div>
-      <p class="aviso" id="a-error">Tus datos viven solo en este navegador. Copia este
-        texto para guardarlos o pasarlos a otro dispositivo.</p>
+      <p class="aviso" id="a-estado-nube">${textoEstadoGuardado()}</p>
+      <p class="aviso" id="a-error"></p>
 
       <div class="acciones-modal">
         <button id="a-cancelar">Cancelar</button>
@@ -453,7 +533,18 @@ export function iniciar(raiz, almacen) {
     caja.onclick = (ev) => {
       const b = ev.target.closest("button");
       if (!b) return;
-      if (b.dataset.tema) {
+      if (b.id === "a-iniciar-sesion") {
+        b.disabled = true;
+        b.textContent = "Abriendo Google…";
+        iniciarSesion().catch((err) => {
+          caja.querySelector("#a-error").textContent = err.message
+            || "No se ha podido iniciar sesión. Inténtalo de nuevo.";
+          b.disabled = false;
+          b.textContent = "Iniciar sesión con Google";
+        });
+      }
+      else if (b.id === "a-cerrar-sesion") { cerrarSesion(); }
+      else if (b.dataset.tema) {
         c.tema = b.dataset.tema;
         document.documentElement.dataset.tema = c.tema;
         persistir();
@@ -655,4 +746,19 @@ export function iniciar(raiz, almacen) {
   });
 
   pintar();
+
+  // Ademas de lo que ya haya en localStorage, se intenta traer la copia
+  // guardada en el propio Artifact (si la app vive ahi): es la que sobrevive
+  // a que el navegador (sobre todo Safari en el movil) purgue el
+  // localStorage de ese iframe de terceros.
+  cargarRemoto().then(adoptarRemoto);
+
+  // Y si hay sesion de Google, la copia en Firestore — este es el canal que
+  // de verdad sincroniza entre dispositivos (el del Artifact es solo por
+  // dispositivo, salvo que Claude comparta el mismo remoto).
+  alCambiarSesion((usuario) => {
+    sesion = usuario;
+    repintarAjustesSiAbierto();
+    if (sesion) cargarNube().then(adoptarRemoto);
+  });
 }
