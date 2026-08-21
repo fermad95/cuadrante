@@ -92,8 +92,9 @@ export async function cargarNube() {
 export function creaGuardadoNube(alCambiarEstado) {
   let temporizador = null;
   let ultimoEnviado = null;
+  let ultimoUid = null;
   let pendiente = null;
-  let estado = "no-disponible";
+  let estado = "comprobando";
 
   function fijarEstado(nuevo) {
     if (nuevo === estado) return;
@@ -101,10 +102,21 @@ export function creaGuardadoNube(alCambiarEstado) {
     if (typeof alCambiarEstado === "function") alCambiarEstado(estado);
   }
 
+  // Si al arrancar ya hay sesion (usuario que volvio), que el aviso empiece
+  // en "al dia" (nada pendiente) en vez de quedarse en "no disponible" hasta
+  // el primer cambio, que seria enganoso teniendo sesion.
+  uidActual().then((act) => {
+    if (estado === "comprobando") fijarEstado(act ? "al-dia" : "no-disponible");
+  });
+
   async function enviar(datoAGuardar) {
     const act = await uidActual();
     if (!act) { fijarEstado("no-disponible"); return; }
     const { f, uid } = act;
+    // Si ha cambiado de cuenta (cerrar sesion + entrar con otra Google
+    // distinta) sin que el estado local haya cambiado, no hay que confiar
+    // en el "ya esta enviado" de la cuenta anterior.
+    if (uid !== ultimoUid) { ultimoEnviado = null; ultimoUid = uid; }
     const contenido = JSON.stringify(datoAGuardar);
     if (contenido === ultimoEnviado) { fijarEstado("al-dia"); return; }
     try {

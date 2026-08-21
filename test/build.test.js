@@ -1,7 +1,7 @@
 // test/build.test.js
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { construir } from "../build.mjs";
+import { construir, construirDocumento } from "../build.mjs";
 
 test("el html generado es autocontenido", () => {
   const html = construir();
@@ -40,6 +40,43 @@ test("cada modulo importado esta en el bundle", () => {
     "RETRIBUCIONES_ANEXO", "migrarV5", "estadoInicial", "calcularGuardia", "resumenMes"]) {
     assert.ok(html.includes(simbolo), `falta ${simbolo}`);
   }
+});
+
+// build.mjs concatena todos los modulos de src/ en un unico <script>: no hay
+// bundler de verdad que aisle el ambito de cada uno. Si dos archivos exportan
+// una funcion o constante con el mismo nombre, el navegador la rechaza entera
+// con un SyntaxError y la app se queda en blanco — no lo pillan los tests de
+// los modulos por separado, solo uno que mire el bundle final. Paso en la
+// practica el 21/08/2026 con `cargarRemoto` en persistencia.js y nube.js.
+function nombresDuplicados(html) {
+  const nombres = [...html.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)]
+    .map((m) => m[1]);
+  const vistos = new Set();
+  const repetidos = new Set();
+  for (const n of nombres) {
+    if (vistos.has(n)) repetidos.add(n);
+    vistos.add(n);
+  }
+  return [...repetidos];
+}
+
+test("ninguna funcion de nivel superior se declara dos veces en el bundle", () => {
+  assert.deepEqual(nombresDuplicados(construir()), []);
+  assert.deepEqual(nombresDuplicados(construirDocumento()), []);
+});
+
+test("construirDocumento genera un documento HTML completo para GitHub Pages", () => {
+  const html = construirDocumento();
+  assert.ok(html.startsWith("<!doctype html>"), "debe empezar con el doctype");
+  assert.ok(html.includes("<head>") && html.includes("</head>"), "necesita head propio");
+  assert.ok(html.includes("<body>") && html.includes("</body>"), "necesita body propio");
+  assert.ok(html.includes('<link rel="manifest" href="manifest.json">'), "falta el manifest");
+  assert.ok(html.includes('rel="apple-touch-icon"'), "falta el icono de iOS");
+  assert.ok(html.includes("iniciar(document.body, localStorage)"), "debe arrancar la app");
+  assert.ok(!html.includes("import "), "no puede quedar ningun import estatico");
+  assert.ok(!html.match(/^export /m), "no puede quedar ningun export");
+  assert.ok(!html.includes("1256.05") && !html.includes("2026-05-27"),
+    "no puede llevar datos personales, igual que el fragmento del Artifact");
 });
 
 test("el bundle no lleva erratas de texto visibles", () => {
