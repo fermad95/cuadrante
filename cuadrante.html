@@ -1225,7 +1225,11 @@ async function uidActual() {
   return f && f.auth.currentUser ? { f, uid: f.auth.currentUser.uid } : null;
 }
 
-async function cargarRemoto() {
+// Nombrada distinto de la del Artifact (`cargarRemoto` en persistencia.js):
+// build.mjs concatena todos los modulos en un unico script, y un alias en el
+// `import` de ui.js no evita el choque de nombres a nivel superior — hacen
+// falta nombres de verdad distintos en el propio archivo.
+async function cargarNube() {
   const act = await uidActual();
   if (!act) return null;
   const { f, uid } = act;
@@ -1237,12 +1241,9 @@ async function cargarRemoto() {
   }
 }
 
-// Misma logica de "gana quien sea mas reciente" que persistencia.js (el
-// Artifact). Se repite aqui (en vez de importarla) porque los dos modulos
-// son independientes: uno u otro puede faltar segun donde viva la app.
-function esMasReciente(remoto, local) {
-  return (remoto && remoto.actualizadoEn || 0) > (local && local.actualizadoEn || 0);
-}
+// `esMasReciente` (la logica de "gana quien sea mas reciente") se reutiliza
+// de persistencia.js: es la misma funcion pura, y por el mismo motivo de
+// arriba no puede haber una segunda declaracion con el mismo nombre aqui.
 
 // Debounced + envio inmediato al ocultar la pestana, igual que el guardado
 // en el Artifact. `alCambiarEstado(estado)` recibe "comprobando" / "al-dia" /
