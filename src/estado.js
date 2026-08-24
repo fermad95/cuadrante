@@ -3,6 +3,7 @@ import { festivosDerivados } from "./festivos.js";
 
 export const CLAVE = "cuadrante_v6";
 export const CLAVE_V5 = "cuadrante_v5";
+export const CLAVE_PREVIO = "cuadrante_v6_previo";
 
 export function estadoInicial() {
   return {
@@ -63,6 +64,14 @@ function nominaValida(n) {
     && typeof n.neto === "number" && n.neto > 0 && n.neto <= n.bruto;
 }
 
+const CLASES_FESTIVO = ["laborable", "sdf", "especial"];
+
+function festivoValido(fecha, f) {
+  return ES_FECHA.test(fecha) && f && typeof f === "object"
+    && CLASES_FESTIVO.includes(f.clase)
+    && (f.nombre === undefined || typeof f.nombre === "string");
+}
+
 // Importa una copia de seguridad pegada a mano. Descarta lo que no sea valido en
 // vez de rechazar el lote entero: una copia casi buena sigue sirviendo, y se
 // informa de cuantas entradas se han caido. El tema no se importa a proposito:
@@ -100,6 +109,18 @@ export function importarEstado(texto) {
 
   const config = { ...inicial.config, ...(base.config || {}) };
   delete config.tema;
+  // Una fecha de inicio con formato raro romperia el calculo del anio de
+  // residencia (NaN silencioso en las tarifas): si no es una fecha valida,
+  // se descarta y se vuelve a preguntar.
+  if (config.inicioResidencia != null && !ES_FECHA.test(config.inicioResidencia)) {
+    config.inicioResidencia = null;
+  }
+
+  const festivos = {};
+  for (const [fecha, f] of Object.entries(base.festivos || {})) {
+    if (festivoValido(fecha, f)) festivos[fecha] = f;
+    else descartadas += 1;
+  }
 
   return {
     ok: true,
@@ -108,8 +129,8 @@ export function importarEstado(texto) {
       ...inicial,
       config,
       guardias,
+      festivos,
       nominas,
-      festivos: base.festivos && typeof base.festivos === "object" ? base.festivos : {},
       version: 6,
     },
   };
@@ -124,6 +145,34 @@ function leerJSON(almacen, clave) {
   } catch {
     return null;
   }
+}
+
+// Copia del ultimo estado local antes de que una adopcion remota lo pise. Es
+// el respaldo para "restaurar mi copia anterior": vive solo en este
+// dispositivo (no viaja a la nube) y la siguiente adopcion la sobrescribe.
+export function guardarPrevio(almacen, estado) {
+  try { almacen.setItem(CLAVE_PREVIO, JSON.stringify(estado)); } catch { /* sin espacio: no pasa nada */ }
+}
+
+export function cargarPrevio(almacen) {
+  return leerJSON(almacen, CLAVE_PREVIO);
+}
+
+// Compara solo los datos del usuario (config sin el tema, guardias, festivos,
+// nominas), ignorando lo que es de cada dispositivo o una marca de tiempo:
+// sirve para saber si una adopcion remota va a descartar ediciones locales.
+export function mismaData(a, b) {
+  if (!a || !b) return false;
+  const datos = (e) => {
+    const { tema, ...config } = e.config || {};
+    return JSON.stringify({
+      config,
+      guardias: e.guardias || {},
+      festivos: e.festivos || {},
+      nominas: e.nominas || [],
+    });
+  };
+  return datos(a) === datos(b);
 }
 
 // Rellena con el estado inicial las claves que falten en un dato guardado o

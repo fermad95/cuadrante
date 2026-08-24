@@ -79,6 +79,14 @@ test("construirDocumento genera un documento HTML completo para GitHub Pages", (
     "no puede llevar datos personales, igual que el fragmento del Artifact");
 });
 
+test("solo la version de GitHub Pages registra el service worker", () => {
+  const html = construirDocumento();
+  assert.ok(html.includes('navigator.serviceWorker.register("sw.js")'),
+    "la pagina de GitHub Pages debe registrar el service worker");
+  assert.ok(!construir().includes("serviceWorker"),
+    "el fragmento del Artifact no debe registrar nada en el dominio de claude.ai");
+});
+
 test("el bundle no lleva erratas de texto visibles", () => {
   const html = construir();
   // "Ano Nuevo" en vez de "Año Nuevo" significa otra cosa muy distinta.
