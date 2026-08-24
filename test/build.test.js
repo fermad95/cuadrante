@@ -87,6 +87,15 @@ test("solo la version de GitHub Pages registra el service worker", () => {
     "el fragmento del Artifact no debe registrar nada en el dominio de claude.ai");
 });
 
+test("solo la version de GitHub Pages lleva los metas de app movil", () => {
+  const html = construirDocumento();
+  assert.ok(html.includes('name="mobile-web-app-capable"'), "falta el meta de Android/Chrome");
+  assert.ok(html.includes('name="apple-mobile-web-app-capable"'), "falta el meta de iOS");
+  assert.ok(html.includes('name="apple-mobile-web-app-status-bar-style"'), "falta el estilo de la barra de iOS");
+  assert.ok(!construir().includes("apple-mobile-web-app-capable"),
+    "el fragmento del Artifact no necesita metas de instalacion");
+});
+
 test("el bundle no lleva erratas de texto visibles", () => {
   const html = construir();
   // "Ano Nuevo" en vez de "Año Nuevo" significa otra cosa muy distinta.
