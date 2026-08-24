@@ -48,6 +48,9 @@ export function construirDocumento() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#05070d">
 <meta name="description" content="Calendario de guardias MIR, festivos, nóminas y previsión de ingresos.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
