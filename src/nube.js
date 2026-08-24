@@ -23,6 +23,16 @@ const CONFIG = {
 
 let sdkPromesa = null;
 
+// iOS Safari bloquea los popups, y en modo standalone (app anadida a pantalla
+// de inicio) todavia mas. iPadOS 13+ se anuncia como Macintosh, asi que hace
+// falta mirar tambien el touch. En esos casos el login va por redireccion.
+function esMovilIOS() {
+  return typeof navigator !== "undefined" && (
+    /iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 function cargarSDK() {
   if (!sdkPromesa) {
     sdkPromesa = Promise.all([
@@ -46,13 +56,25 @@ export function alCambiarSesion(fn) {
     f.authMod.onAuthStateChanged(f.auth, (u) => {
       fn(u ? { uid: u.uid, nombre: u.displayName, correo: u.email, foto: u.photoURL } : null);
     });
+    // Si venimos de un login por redireccion (iOS), la sesion se restaura
+    // igual por onAuthStateChanged, pero getRedirectResult cierra el flujo y
+    // consume cualquier error pendiente para que no quede nada colgado.
+    f.authMod.getRedirectResult(f.auth).catch(() => {});
   });
 }
 
 export async function iniciarSesion() {
   const f = await cargarSDK();
   if (!f) throw new Error("Sin conexion: no se puede iniciar sesion ahora mismo.");
-  await f.authMod.signInWithPopup(f.auth, new f.authMod.GoogleAuthProvider());
+  const proveedor = new f.authMod.GoogleAuthProvider();
+  if (esMovilIOS()) {
+    // iOS (sobre todo en modo standalone, la app anadida a pantalla de
+    // inicio) bloquea los popups: el flujo de redireccion recarga la pagina
+    // y la sesion queda iniciada al volver, sin popup.
+    await f.authMod.signInWithRedirect(f.auth, proveedor);
+    return; // la redireccion recarga la pagina; esto no llega a ejecutarse
+  }
+  await f.authMod.signInWithPopup(f.auth, proveedor);
 }
 
 export async function cerrarSesion() {

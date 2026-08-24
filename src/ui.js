@@ -2,7 +2,7 @@
 import { diasDelMes, diaSemana, redondear } from "./fechas.js";
 import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
-import { cargar, guardar, estadoInicial, importarEstado } from "./estado.js";
+import { cargar, guardar, estadoInicial, importarEstado, mismaData, guardarPrevio, cargarPrevio } from "./estado.js";
 import { cargarRemoto, creaGuardadoRemoto, esMasReciente } from "./persistencia.js";
 import { alCambiarSesion, iniciarSesion, cerrarSesion, cargarNube, creaGuardadoNube } from "./nube.js";
 import { RETRIBUCIONES_ANEXO, retribucionesDe } from "./tarifas.js";
@@ -88,11 +88,45 @@ export function iniciar(raiz, almacen) {
     const resultado = importarEstado(JSON.stringify(remoto));
     if (!resultado.ok) return;
     const tema = estado.config.tema;
+    // Antes de pisar lo local, se mira si la copia remota descarta ediciones
+    // de este dispositivo: si es asi, la anterior queda guardada y se avisa.
+    const previo = { ...estado };
+    const habiaEdiciones = !mismaData(previo, resultado.estado);
     Object.assign(estado, resultado.estado);
     estado.config.tema = tema;
     estado.actualizadoEn = remoto.actualizadoEn || Date.now();
     guardar(almacen, estado);
     pintar();
+    if (habiaEdiciones) {
+      guardarPrevio(almacen, previo);
+      avisarAdopcion();
+    }
+  }
+
+  // Aviso no bloqueante cuando una copia remota mas reciente pisa ediciones
+  // locales: la copia anterior quedo guardada y se ofrece restaurarla. Al
+  // restaurar, la copia local vuelve a ser la mas reciente y se sincroniza.
+  function avisarAdopcion() {
+    const vista = raiz.querySelector("#vista");
+    const nota = document.createElement("p");
+    nota.className = "aviso";
+    nota.textContent = "Se ha adoptado la copia más reciente de otro dispositivo. ";
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.textContent = "Restaurar mi copia anterior";
+    boton.onclick = () => {
+      const previo = cargarPrevio(almacen);
+      if (!previo) return;
+      const r = importarEstado(JSON.stringify(previo));
+      if (!r.ok) return;
+      const tema = estado.config.tema;
+      Object.assign(estado, r.estado);
+      estado.config.tema = tema;
+      persistir(); // queda como la mas reciente: gana esta copia y se sincroniza
+      pintar();
+    };
+    nota.appendChild(boton);
+    vista.prepend(nota);
   }
 
   function pintar() {

@@ -63,6 +63,16 @@ ${js}
 
 iniciar(document.body, localStorage);
 </script>
+<!-- Fuera de red, la app sigue funcionando gracias al service worker
+     (sw.js, servido tal cual por GitHub Pages): la primera visita cachea el
+     armazon y las siguientes se sirven sin conexion. Solo en la version de
+     GitHub Pages: en el Artifact el registro iria al dominio de claude.ai,
+     donde no pinta nada. -->
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>`;
 }
