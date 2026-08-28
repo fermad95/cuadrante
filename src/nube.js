@@ -126,21 +126,28 @@ export function creaGuardadoNube(alCambiarEstado) {
 
   // Si al arrancar ya hay sesion (usuario que volvio), que el aviso empiece
   // en "al dia" (nada pendiente) en vez de quedarse en "no disponible" hasta
-  // el primer cambio, que seria enganoso teniendo sesion. Ojo: `currentUser`
-  // justo tras cargar el SDK puede ser todavia null aunque haya una sesion
-  // persistida (Firebase Auth aun no la ha restaurado). Un primer intento con
-  // `onAuthStateChanged` no basta: ese callback dispara de inmediato con el
-  // `currentUser` de ese instante (null) y OTRA VEZ cuando la sesion
-  // persistida termina de restaurarse — la comprobacion `estado ===
-  // "comprobando"` solo protegia el primer disparo, asi que el segundo (el
-  // que trae al usuario de verdad) llegaba tarde y ya no se aplicaba,
-  // dejando el aviso encasquillado en "no disponible" igual que antes.
-  // `authStateReady()` (SDK 10.7+) resuelve una sola vez, despues de que
-  // Firebase termina de mirar la sesion persistida: sin doble disparo.
-  cargarSDK().then(async (f) => {
+  // el primer cambio, que seria enganoso teniendo sesion. Ojo: dos intentos
+  // anteriores (mirar `currentUser` justo tras cargar el SDK, y despues
+  // esperar a un solo `onAuthStateChanged`/`authStateReady()`) seguian
+  // dejando el aviso encasquillado en "no disponible" — verificado en vivo
+  // las dos veces: la sesion persistida puede tardar en resolverse mas de lo
+  // que cualquiera de esas señales garantiza, y cualquier comprobacion de
+  // "una sola vez" puede caer justo antes de que se resuelva. La solucion no
+  // es afinar CUANDO se comprueba, sino no fiarse nunca de un "no hay
+  // sesion" que salga de aqui: este listener se queda escuchando
+  // indefinidamente (no una vez) y solo corrige el aviso hacia "al dia" en
+  // cuanto aparece un usuario real, aunque sea tarde. El "no disponible" por
+  // ausencia de sesion solo se declara tras un plazo de gracia sin que
+  // aparezca nadie — y si la sesion llega despues de todos modos, este mismo
+  // listener lo corrige.
+  cargarSDK().then((f) => {
     if (!f) { if (estado === "comprobando") fijarEstado("no-disponible"); return; }
-    await f.auth.authStateReady();
-    if (estado === "comprobando") fijarEstado(f.auth.currentUser ? "al-dia" : "no-disponible");
+    f.authMod.onAuthStateChanged(f.auth, (u) => {
+      if (u && (estado === "comprobando" || estado === "no-disponible")) fijarEstado("al-dia");
+    });
+    setTimeout(() => {
+      if (estado === "comprobando") fijarEstado("no-disponible");
+    }, 8000);
   });
 
   async function enviar(datoAGuardar) {
