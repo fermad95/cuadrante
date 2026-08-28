@@ -128,15 +128,19 @@ export function creaGuardadoNube(alCambiarEstado) {
   // en "al dia" (nada pendiente) en vez de quedarse en "no disponible" hasta
   // el primer cambio, que seria enganoso teniendo sesion. Ojo: `currentUser`
   // justo tras cargar el SDK puede ser todavia null aunque haya una sesion
-  // persistida (Firebase Auth aun no la ha restaurado) — comprobarlo asi de
-  // primeras es una carrera que deja el aviso encasquillado en "no
-  // disponible" para siempre. Por eso se espera a onAuthStateChanged, que
-  // dispara una vez cuando Firebase termina de resolver la sesion real.
-  cargarSDK().then((f) => {
+  // persistida (Firebase Auth aun no la ha restaurado). Un primer intento con
+  // `onAuthStateChanged` no basta: ese callback dispara de inmediato con el
+  // `currentUser` de ese instante (null) y OTRA VEZ cuando la sesion
+  // persistida termina de restaurarse — la comprobacion `estado ===
+  // "comprobando"` solo protegia el primer disparo, asi que el segundo (el
+  // que trae al usuario de verdad) llegaba tarde y ya no se aplicaba,
+  // dejando el aviso encasquillado en "no disponible" igual que antes.
+  // `authStateReady()` (SDK 10.7+) resuelve una sola vez, despues de que
+  // Firebase termina de mirar la sesion persistida: sin doble disparo.
+  cargarSDK().then(async (f) => {
     if (!f) { if (estado === "comprobando") fijarEstado("no-disponible"); return; }
-    f.authMod.onAuthStateChanged(f.auth, (u) => {
-      if (estado === "comprobando") fijarEstado(u ? "al-dia" : "no-disponible");
-    });
+    await f.auth.authStateReady();
+    if (estado === "comprobando") fijarEstado(f.auth.currentUser ? "al-dia" : "no-disponible");
   });
 
   async function enviar(datoAGuardar) {
