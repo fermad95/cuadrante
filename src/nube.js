@@ -50,7 +50,7 @@ function cargarSDK() {
 // Llama a `fn(usuario | null)` cada vez que cambia la sesion. `usuario` es
 // `{ uid, nombre, correo, foto }` o `null` si no hay sesion. Si el SDK no
 // carga (sin red), se llama una vez con null y ya esta.
-export function alCambiarSesion(fn) {
+export function alCambiarSesion(fn, alErrorRedireccion) {
   cargarSDK().then((f) => {
     if (!f) { fn(null); return; }
     f.authMod.onAuthStateChanged(f.auth, (u) => {
@@ -58,8 +58,12 @@ export function alCambiarSesion(fn) {
     });
     // Si venimos de un login por redireccion (iOS), la sesion se restaura
     // igual por onAuthStateChanged, pero getRedirectResult cierra el flujo y
-    // consume cualquier error pendiente para que no quede nada colgado.
-    f.authMod.getRedirectResult(f.auth).catch(() => {});
+    // puede rechazar con el motivo real (dominio no autorizado, almacenamiento
+    // bloqueado por Safari, etc.): se reporta en vez de descartarse en
+    // silencio, para poder diagnosticar el login atascado en el movil.
+    f.authMod.getRedirectResult(f.auth).catch((err) => {
+      if (typeof alErrorRedireccion === "function") alErrorRedireccion(err);
+    });
   });
 }
 
