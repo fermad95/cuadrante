@@ -791,5 +791,12 @@ export function iniciar(raiz, almacen) {
     sesion = usuario;
     repintarAjustesSiAbierto();
     if (sesion) cargarNube().then(adoptarRemoto);
+  }, (err) => {
+    // Volviendo de un login por redireccion (movil) que ha fallado: se abre
+    // Ajustes con el motivo real en vez de dejar que parezca que "no ha
+    // pasado nada" al volver a la pantalla de inicio.
+    abrirAjustes();
+    const el = raiz.querySelector("#a-error");
+    if (el) el.textContent = `Error al volver de Google: ${(err && (err.code || err.message)) || err}`;
   });
 }
