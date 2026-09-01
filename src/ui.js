@@ -2,6 +2,7 @@
 import { diasDelMes, diaSemana, redondear } from "./fechas.js";
 import { sugerenciaPara, calcularGuardia } from "./motor.js";
 import { resumenMes, previsionIngreso, resumenAnio, compararHipotesis, tiposEfectivos, historialTipos } from "./nomina.js";
+import { extraerTextoPdf, parsearNomina } from "./nomina-pdf.js";
 import { cargar, guardar, estadoInicial, importarEstado, mismaData, guardarPrevio, cargarPrevio } from "./estado.js";
 import { cargarRemoto, creaGuardadoRemoto, esMasReciente } from "./persistencia.js";
 import { alCambiarSesion, iniciarSesion, cerrarSesion, cargarNube, creaGuardadoNube } from "./nube.js";
@@ -60,6 +61,10 @@ export function iniciar(raiz, almacen) {
   let pestana = "calendario";
   let mesVisible = hoyISO().slice(0, 7);
   let ajustesAbierto = false;
+  // PDFs de nomina leidos en esta sesion, pendientes de revisar y confirmar
+  // uno a uno; no se persisten hasta que el usuario pulsa "Anadir".
+  let pendientesNomina = [];
+  let estadoPdf = "";
 
   raiz.querySelector("#logo-app").src = LOGO_URI;
 
@@ -315,6 +320,78 @@ export function iniciar(raiz, almacen) {
       </div></div>`;
   }
 
+  // Redondeo de dos decimales con coma, para prellenar inputs con el mismo
+  // formato que espera el usuario al escribir a mano (no el punto de JS).
+  const cifra = (n) => n.toFixed(2).replace(".", ",");
+
+  // Comparte las reglas de validacion entre el alta manual y las tarjetas de
+  // revision de PDF: un solo sitio donde tocarlas si cambian.
+  function construirNomina({ periodo, clase, bruto, neto, cotizacion, irpf }) {
+    if (!/^\d{4}-\d{2}$/.test(periodo)) {
+      return { ok: false, error: "El periodo se escribe como 2026-09." };
+    }
+    if (!(bruto > 0) || !(neto > 0)) {
+      return { ok: false, error: "Bruto y neto tienen que ser mayores que cero." };
+    }
+    if (neto > bruto) {
+      return { ok: false, error: "El neto no puede ser mayor que el bruto." };
+    }
+    const nomina = { periodo, clase, bruto: redondear(bruto), neto: redondear(neto) };
+    // Cero es un valor legitimo: hasta la primera regularizacion el IRPF de
+    // un residente suele ser 0. Por eso se mira si el campo esta vacio, no
+    // si vale mas que cero.
+    const hayDesglose = cotizacion !== null || irpf !== null;
+    if (hayDesglose) {
+      if (cotizacion === null || irpf === null) {
+        return { ok: false, error: "Si desglosas, pon las dos: cotización e IRPF. Si una es cero, escribe 0." };
+      }
+      if (!(cotizacion >= 0) || !(irpf >= 0)) {
+        return { ok: false, error: "La cotización y el IRPF no pueden ser negativos." };
+      }
+      if (Math.abs(cotizacion + irpf - (bruto - neto)) > 0.02) {
+        return {
+          ok: false,
+          error: `Cotización + IRPF son ${eur(redondear(cotizacion + irpf))}, `
+            + `pero del bruto al neto van ${eur(redondear(bruto - neto))}. Revísalo.`,
+        };
+      }
+      nomina.cotizacion = redondear(cotizacion);
+      nomina.irpf = redondear(irpf);
+    }
+    return { ok: true, nomina };
+  }
+
+  // Una tarjeta de revision por PDF leido: los campos ya vienen rellenos pero
+  // editables, y no se guarda nada hasta que se pulsa "Anadir" en la propia
+  // tarjeta. Si el PDF no se pudo parsear, se enseña el motivo en su lugar.
+  function vistaPendiente(p, i) {
+    if (!p.ok) {
+      return `<div class="tarjeta">
+        <strong class="etiqueta">${esc(p.nombreArchivo)}</strong>
+        <p class="aviso">${esc(p.error)}</p>
+        <button data-pend-descartar="${i}">Descartar</button></div>`;
+    }
+    const d = p.datos;
+    return `<div class="tarjeta">
+      <strong class="etiqueta">${esc(p.nombreArchivo)}</strong>
+      <div class="formulario">
+        <input id="pend-periodo-${i}" value="${esc(d.periodo)}" size="8">
+        <select id="pend-clase-${i}">
+          <option value="base" ${d.clase === "base" ? "selected" : ""}>Base</option>
+          <option value="guardias" ${d.clase === "guardias" ? "selected" : ""}>Guardias</option>
+        </select>
+        <input id="pend-bruto-${i}" value="${cifra(d.bruto)}" size="8">
+        <input id="pend-neto-${i}" value="${cifra(d.neto)}" size="8">
+      </div>
+      <div class="formulario">
+        <input id="pend-cotizacion-${i}" value="${cifra(d.cotizacion)}" size="10">
+        <input id="pend-irpf-${i}" value="${cifra(d.irpf)}" size="8">
+        <button class="primario" data-pend-anadir="${i}">Añadir</button>
+        <button data-pend-descartar="${i}">Descartar</button>
+      </div>
+      <p class="aviso" id="pend-error-${i}"></p></div>`;
+  }
+
   function vistaNominas() {
     const t = tiposEfectivos(estado.nominas, estado.config);
     const filas = estado.nominas.map((n, i) => `
@@ -324,6 +401,11 @@ export function iniciar(raiz, almacen) {
       <table>${filas}</table>
       ${bloqueRetencion("base", "Base", t.base, t.nBase)}
       ${bloqueRetencion("guardias", "Guardias", t.guardias, t.nGuardias)}
+      <div class="formulario">
+        <input type="file" id="n-pdf-input" accept="application/pdf" multiple>
+      </div>
+      ${estadoPdf ? `<p class="aviso">${esc(estadoPdf)}</p>` : ""}
+      ${pendientesNomina.map(vistaPendiente).join("")}
       <div class="formulario">
         <input id="n-periodo" placeholder="2026-09" size="8">
         <select id="n-clase"><option value="base">Base</option><option value="guardias">Guardias</option></select>
@@ -670,7 +752,7 @@ export function iniciar(raiz, almacen) {
   }
 
   raiz.addEventListener("click", (ev) => {
-    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir, #marcar-mes");
+    const b = ev.target.closest("[data-pestana], [data-mes], [data-fecha], [data-festivo], [data-borrar-nomina], [data-pend-anadir], [data-pend-descartar], #n-anadir, #b-empezar, #abrir-ajustes, #f-anadir, #marcar-mes");
     if (!b) return;
     if (b.id === "abrir-ajustes") abrirAjustes();
     else if (b.id === "b-empezar") {
@@ -722,50 +804,74 @@ export function iniciar(raiz, almacen) {
     else if (b.id === "n-anadir") {
       const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
       const periodo = raiz.querySelector("#n-periodo").value.trim();
+      const clase = raiz.querySelector("#n-clase").value;
       const bruto = Number(leer("#n-bruto"));
       const neto = Number(leer("#n-neto"));
+      const cotTexto = raiz.querySelector("#n-cotizacion").value.trim();
+      const irpfTexto = raiz.querySelector("#n-irpf").value.trim();
+      const resultado = construirNomina({
+        periodo, clase, bruto, neto,
+        cotizacion: cotTexto === "" ? null : Number(cotTexto.replace(",", ".")),
+        irpf: irpfTexto === "" ? null : Number(irpfTexto.replace(",", ".")),
+      });
       const error = raiz.querySelector("#n-error");
-      if (!/^\d{4}-\d{2}$/.test(periodo)) {
-        error.textContent = "El periodo se escribe como 2026-09.";
-      } else if (!(bruto > 0) || !(neto > 0)) {
-        error.textContent = "Bruto y neto tienen que ser mayores que cero.";
-      } else if (neto > bruto) {
-        error.textContent = "El neto no puede ser mayor que el bruto.";
+      if (!resultado.ok) {
+        error.textContent = resultado.error;
       } else {
-        // Cero es un valor legitimo: hasta la primera regularizacion el IRPF de
-        // un residente suele ser 0. Por eso se mira si el campo esta vacio, no
-        // si vale mas que cero.
-        const cotTexto = raiz.querySelector("#n-cotizacion").value.trim();
-        const irpfTexto = raiz.querySelector("#n-irpf").value.trim();
-        const cot = Number(cotTexto.replace(",", "."));
-        const irpf = Number(irpfTexto.replace(",", "."));
-        const nomina = {
-          periodo, clase: raiz.querySelector("#n-clase").value,
-          bruto: redondear(bruto), neto: redondear(neto),
-        };
-        // El desglose es opcional, pero si se da tiene que ser entero y cuadrar.
-        if (cotTexto !== "" || irpfTexto !== "") {
-          if (cotTexto === "" || irpfTexto === "") {
-            error.textContent = "Si desglosas, pon las dos: cotización e IRPF. "
-              + "Si una es cero, escribe 0.";
-            return;
-          }
-          if (!(cot >= 0) || !(irpf >= 0)) {
-            error.textContent = "La cotización y el IRPF no pueden ser negativos.";
-            return;
-          }
-          if (Math.abs(cot + irpf - (bruto - neto)) > 0.02) {
-            error.textContent = `Cotización + IRPF son ${eur(redondear(cot + irpf))}, `
-              + `pero del bruto al neto van ${eur(redondear(bruto - neto))}. Revísalo.`;
-            return;
-          }
-          nomina.cotizacion = redondear(cot);
-          nomina.irpf = redondear(irpf);
-        }
-        estado.nominas.push(nomina);
+        estado.nominas.push(resultado.nomina);
         persistir(); pintar();
       }
     }
+    else if (b.dataset.pendAnadir) {
+      const i = Number(b.dataset.pendAnadir);
+      const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
+      const periodo = raiz.querySelector(`#pend-periodo-${i}`).value.trim();
+      const clase = raiz.querySelector(`#pend-clase-${i}`).value;
+      const bruto = Number(leer(`#pend-bruto-${i}`));
+      const neto = Number(leer(`#pend-neto-${i}`));
+      const cotTexto = raiz.querySelector(`#pend-cotizacion-${i}`).value.trim();
+      const irpfTexto = raiz.querySelector(`#pend-irpf-${i}`).value.trim();
+      const resultado = construirNomina({
+        periodo, clase, bruto, neto,
+        cotizacion: cotTexto === "" ? null : Number(cotTexto.replace(",", ".")),
+        irpf: irpfTexto === "" ? null : Number(irpfTexto.replace(",", ".")),
+      });
+      const error = raiz.querySelector(`#pend-error-${i}`);
+      if (!resultado.ok) {
+        error.textContent = resultado.error;
+      } else {
+        estado.nominas.push(resultado.nomina);
+        pendientesNomina.splice(i, 1);
+        persistir(); pintar();
+      }
+    }
+    else if (b.dataset.pendDescartar) {
+      pendientesNomina.splice(Number(b.dataset.pendDescartar), 1);
+      pintar();
+    }
+  });
+
+  // Se procesan los PDF elegidos y se anaden como tarjetas de revision; nada
+  // se guarda en el estado todavia. Si pdf.js no llega a cargar (sin red) o
+  // un PDF concreto no encaja con el formato esperado, se enseña el motivo
+  // en su tarjeta en vez de dejar el boton sin respuesta.
+  raiz.addEventListener("change", async (ev) => {
+    if (ev.target.id !== "n-pdf-input") return;
+    const archivos = [...ev.target.files];
+    if (archivos.length === 0) return;
+    estadoPdf = archivos.length === 1 ? "Leyendo 1 PDF…" : `Leyendo ${archivos.length} PDF…`;
+    pintar();
+    for (const archivo of archivos) {
+      try {
+        const buffer = await archivo.arrayBuffer();
+        const texto = await extraerTextoPdf(buffer);
+        pendientesNomina.push({ ok: true, nombreArchivo: archivo.name, datos: parsearNomina(texto) });
+      } catch (e) {
+        pendientesNomina.push({ ok: false, nombreArchivo: archivo.name, error: e.message });
+      }
+    }
+    estadoPdf = "";
+    pintar();
   });
 
   raiz.querySelector("#modal").addEventListener("click", (ev) => {
