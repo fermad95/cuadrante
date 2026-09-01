@@ -14,12 +14,18 @@ let pdfjsPromesa = null;
 
 // pdf.js se carga con import() dinámico, igual que el SDK de Firebase en
 // nube.js: si falla por falta de red, no tumba el resto de la app — solo
-// falla el botón de importar PDF, y el alta manual sigue funcionando.
+// falla el botón de importar PDF, y el alta manual sigue funcionando. Si el
+// intento falla, no se memoriza el rechazo: se limpia para que el siguiente
+// PDF que se suba vuelva a intentar la carga en vez de fallar para siempre
+// por un corte de red puntual.
 function cargarPdfjs() {
   if (!pdfjsPromesa) {
     pdfjsPromesa = import(`${CDN_PDFJS}/pdf.min.mjs`).then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = `${CDN_PDFJS}/pdf.worker.min.mjs`;
       return pdfjs;
+    }).catch((e) => {
+      pdfjsPromesa = null;
+      throw e;
     });
   }
   return pdfjsPromesa;
@@ -54,8 +60,20 @@ export function parsearNomina(texto) {
   const clase = CLASE_POR_EMISION[tipoEmision];
   if (!clase) throw new Error(`Tipo de nómina no reconocido: "${tipoEmision}".`);
 
-  const [, , mes, anio] = capturar(
-    texto, /Periodo liquidaci[oó]n:\s*(\d{2})\/(\d{2})\/(\d{4})/i, "Periodo liquidación");
+  const [, diaIni, mes, anio, diaFin, mesFin, anioFin] = capturar(
+    texto,
+    /Periodo liquidaci[oó]n:\s*(\d{2})\/(\d{2})\/(\d{4})\s*al\s*(\d{2})\/(\d{2})\/(\d{4})/i,
+    "Periodo liquidación");
+  // Todas las nominas reales vistas hasta ahora liquidan un mes natural
+  // completo. Si algun dia el SAS emite un periodo partido entre dos meses
+  // (p.ej. un alta o baja a mitad de mes), no hay forma fiable de decidir
+  // solo el aqui a que mes natural pertenece — mejor rechazarlo y que se
+  // registre a mano, con criterio, que adivinar.
+  if (mes !== mesFin || anio !== anioFin) {
+    throw new Error(
+      `El periodo de liquidación (${diaIni}/${mes}/${anio} al ${diaFin}/${mesFin}/${anioFin}) `
+      + "no cae en un solo mes natural: regístrala a mano.");
+  }
   const periodo = `${anio}-${mes}`;
 
   const [, brutoTexto] = capturar(texto, /Total devengos:\s*([\d.,]+)/i, "Total devengos");

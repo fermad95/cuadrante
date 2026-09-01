@@ -87,6 +87,13 @@ test("nomina Complementaria se parsea como guardias, periodo del mes trabajado",
   });
 });
 
+test("un periodo de liquidacion partido entre dos meses se rechaza", () => {
+  const texto = TEXTO_NORMAL.replace(
+    "Periodo liquidación: 01/08/2026 al 31/08/2026",
+    "Periodo liquidación: 25/07/2026 al 24/08/2026");
+  assert.throws(() => parsearNomina(texto), /no cae en un solo mes natural/);
+});
+
 test("un tipo de nomina desconocido se rechaza en vez de adivinar la clase", () => {
   const texto = TEXTO_NORMAL.replace("Tip.nóm.emisión: Normal", "Tip.nóm.emisión: Extraordinaria");
   assert.throws(() => parsearNomina(texto), /no reconocido/);
