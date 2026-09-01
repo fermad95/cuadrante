@@ -322,7 +322,9 @@ export function iniciar(raiz, almacen) {
 
   // Redondeo de dos decimales con coma, para prellenar inputs con el mismo
   // formato que espera el usuario al escribir a mano (no el punto de JS).
-  const cifra = (n) => n.toFixed(2).replace(".", ",");
+  // null pasa a cadena vacia: puede llegar de sincronizar una tarjeta cuyo
+  // campo opcional el usuario borro a mano antes de anadir otro PDF.
+  const cifra = (n) => (n == null ? "" : n.toFixed(2).replace(".", ","));
 
   // Comparte las reglas de validacion entre el alta manual y las tarjetas de
   // revision de PDF: un solo sitio donde tocarlas si cambian.
@@ -359,6 +361,24 @@ export function iniciar(raiz, almacen) {
       nomina.irpf = redondear(irpf);
     }
     return { ok: true, nomina };
+  }
+
+  // Lee los campos de un formulario de nomina del DOM. `idDe` traduce cada
+  // nombre de campo a su selector: el alta manual y cada tarjeta pendiente
+  // usan ids distintos (fijos una, con el indice la otra), pero los campos
+  // son los mismos, asi que la lectura tambien puede serlo.
+  function leerNomina(idDe) {
+    const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
+    const cotTexto = raiz.querySelector(idDe("cotizacion")).value.trim();
+    const irpfTexto = raiz.querySelector(idDe("irpf")).value.trim();
+    return {
+      periodo: raiz.querySelector(idDe("periodo")).value.trim(),
+      clase: raiz.querySelector(idDe("clase")).value,
+      bruto: Number(leer(idDe("bruto"))),
+      neto: Number(leer(idDe("neto"))),
+      cotizacion: cotTexto === "" ? null : Number(cotTexto.replace(",", ".")),
+      irpf: irpfTexto === "" ? null : Number(irpfTexto.replace(",", ".")),
+    };
   }
 
   // Una tarjeta de revision por PDF leido: los campos ya vienen rellenos pero
@@ -802,18 +822,7 @@ export function iniciar(raiz, almacen) {
       estado.nominas.splice(Number(b.dataset.borrarNomina), 1); persistir(); pintar();
     }
     else if (b.id === "n-anadir") {
-      const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
-      const periodo = raiz.querySelector("#n-periodo").value.trim();
-      const clase = raiz.querySelector("#n-clase").value;
-      const bruto = Number(leer("#n-bruto"));
-      const neto = Number(leer("#n-neto"));
-      const cotTexto = raiz.querySelector("#n-cotizacion").value.trim();
-      const irpfTexto = raiz.querySelector("#n-irpf").value.trim();
-      const resultado = construirNomina({
-        periodo, clase, bruto, neto,
-        cotizacion: cotTexto === "" ? null : Number(cotTexto.replace(",", ".")),
-        irpf: irpfTexto === "" ? null : Number(irpfTexto.replace(",", ".")),
-      });
+      const resultado = construirNomina(leerNomina((campo) => `#n-${campo}`));
       const error = raiz.querySelector("#n-error");
       if (!resultado.ok) {
         error.textContent = resultado.error;
@@ -824,18 +833,7 @@ export function iniciar(raiz, almacen) {
     }
     else if (b.dataset.pendAnadir) {
       const i = Number(b.dataset.pendAnadir);
-      const leer = (id) => raiz.querySelector(id).value.replace(",", ".");
-      const periodo = raiz.querySelector(`#pend-periodo-${i}`).value.trim();
-      const clase = raiz.querySelector(`#pend-clase-${i}`).value;
-      const bruto = Number(leer(`#pend-bruto-${i}`));
-      const neto = Number(leer(`#pend-neto-${i}`));
-      const cotTexto = raiz.querySelector(`#pend-cotizacion-${i}`).value.trim();
-      const irpfTexto = raiz.querySelector(`#pend-irpf-${i}`).value.trim();
-      const resultado = construirNomina({
-        periodo, clase, bruto, neto,
-        cotizacion: cotTexto === "" ? null : Number(cotTexto.replace(",", ".")),
-        irpf: irpfTexto === "" ? null : Number(irpfTexto.replace(",", ".")),
-      });
+      const resultado = construirNomina(leerNomina((campo) => `#pend-${campo}-${i}`));
       const error = raiz.querySelector(`#pend-error-${i}`);
       if (!resultado.ok) {
         error.textContent = resultado.error;
@@ -859,17 +857,27 @@ export function iniciar(raiz, almacen) {
     if (ev.target.id !== "n-pdf-input") return;
     const archivos = [...ev.target.files];
     if (archivos.length === 0) return;
+    // El pintar() de abajo va a regenerar las tarjetas ya en pantalla a
+    // partir de pendientesNomina: si el usuario habia corregido algo a mano
+    // en una tarjeta anterior sin pulsar "Anadir" todavia, se guarda esa
+    // edicion antes de repintar para no perderla.
+    pendientesNomina.forEach((p, i) => {
+      if (p.ok) p.datos = leerNomina((campo) => `#pend-${campo}-${i}`);
+    });
     estadoPdf = archivos.length === 1 ? "Leyendo 1 PDF…" : `Leyendo ${archivos.length} PDF…`;
     pintar();
-    for (const archivo of archivos) {
+    // Cada PDF se lee de forma independiente, asi que se procesan en
+    // paralelo en vez de uno detras de otro.
+    const nuevas = await Promise.all(archivos.map(async (archivo) => {
       try {
         const buffer = await archivo.arrayBuffer();
         const texto = await extraerTextoPdf(buffer);
-        pendientesNomina.push({ ok: true, nombreArchivo: archivo.name, datos: parsearNomina(texto) });
+        return { ok: true, nombreArchivo: archivo.name, datos: parsearNomina(texto) };
       } catch (e) {
-        pendientesNomina.push({ ok: false, nombreArchivo: archivo.name, error: e.message });
+        return { ok: false, nombreArchivo: archivo.name, error: e.message };
       }
-    }
+    }));
+    pendientesNomina.push(...nuevas);
     estadoPdf = "";
     pintar();
   });
